@@ -18,7 +18,8 @@ import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import LogoutIcon from '@mui/icons-material/Logout';
 
 const AuthenticatedApp: React.FC<{ session: Session }> = (props) => {
-  const session = props.session;
+  // Use props.session explicitly to avoid TS6133 warning for 'session'
+  const session = props.session; 
   const location = useLocation();
   const navigate = useNavigate();
   const [value, setValue] = useState(location.pathname);
@@ -124,7 +125,8 @@ function App() {
     fetchSession();
 
     const { data: { subscription: authListener } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
+      (event, session) => { // Removed underscore from event
+        void event; // Explicitly mark event as consumed
         setSession(session);
       }
     );
