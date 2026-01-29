@@ -139,12 +139,19 @@ const GroceryList: React.FC = () => {
 
   const handleToggleBought = async (item: GroceryItem) => {
     setError(null);
-    if (!item.is_bought) {
+    
+    const isNowBuying = !item.is_bought;
+
+    if (isNowBuying) {
       setLastCompletedItem(item);
       setSnackbarOpen(true);
     }
+    
     try {
-      await supabase.from('grocery_items').update({ is_bought: !item.is_bought }).eq('id', item.id);
+      await supabase.from('grocery_items').update({ 
+        is_bought: isNowBuying,
+        bought_at: isNowBuying ? new Date().toISOString() : null // Set timestamp if buying, null if undoing
+      }).eq('id', item.id);
     } catch (err: any) {
       setError('Error al actualizar artículo: ' + err.message);
     }
