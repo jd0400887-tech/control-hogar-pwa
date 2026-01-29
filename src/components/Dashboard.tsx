@@ -124,8 +124,7 @@ const Dashboard: React.FC = () => {
         </Box>
       ) : (
         <Grid container spacing={3}>
-          {/* Savings Summary */}
-          <Grid item xs={12} md={6}>
+          <Grid item xs={12} md={6} component="div">
             <Card elevation={3} sx={{ bgcolor: 'background.paper' }}>
               <CardContent>
                 <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
@@ -152,7 +151,7 @@ const Dashboard: React.FC = () => {
           </Grid>
 
           {/* Grocery List Summary */}
-          <Grid item xs={12} md={6}>
+          <Grid item xs={12} md={6} component="div">
             <Card elevation={3} sx={{ bgcolor: 'background.paper' }}>
               <CardContent>
                 <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>

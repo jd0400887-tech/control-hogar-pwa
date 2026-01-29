@@ -55,7 +55,7 @@ const GroceryList: React.FC = () => {
     // Set up Realtime subscription
     const channel = supabase
       .channel('grocery-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'grocery_items' }, (payload) => {
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'grocery_items' }, (_payload) => {
         // For simplicity, re-fetch all items on any change.
         // For larger apps, more granular updates could be implemented.
         fetchItems();

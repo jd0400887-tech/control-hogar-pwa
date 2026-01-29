@@ -59,7 +59,7 @@ const Savings: React.FC = () => {
     // Set up Realtime subscription
     const channel = supabase
       .channel('savings-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'savings_movements' }, (payload) => {
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'savings_movements' }, (_payload) => {
         // For simplicity, re-fetch all movements on any change.
         // For larger apps, more granular updates could be implemented.
         fetchMovements();
