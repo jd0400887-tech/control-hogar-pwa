@@ -17,7 +17,8 @@ import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet';
 import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import LogoutIcon from '@mui/icons-material/Logout';
 
-const AuthenticatedApp: React.FC<{ session: Session }> = ({ session }) => {
+const AuthenticatedApp: React.FC<{ session: Session }> = (props) => {
+  const session = props.session;
   const location = useLocation();
   const navigate = useNavigate();
   const [value, setValue] = useState(location.pathname);
