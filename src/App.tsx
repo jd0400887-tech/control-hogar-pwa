@@ -15,6 +15,7 @@ import GroceryList from './components/GroceryList';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet';
 import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
+import LogoutIcon from '@mui/icons-material/Logout';
 import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
 import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
