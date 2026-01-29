@@ -1,14 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   Box, Typography, Button, TextField, CircularProgress, List, ListItem, ListItemText,
-  ListItemSecondaryAction, IconButton, Checkbox, FormControlLabel, Alert, Paper
+  ListItemSecondaryAction, IconButton, Checkbox, FormControlLabel, Alert, Paper, Snackbar, ListSubheader
 } from '@mui/material';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../supabaseClient';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 
-// Define type for a grocery item
+// --- (Types and Helper Functions) ---
 interface GroceryItem {
   id: string;
   user_id: string | null;
@@ -16,33 +16,79 @@ interface GroceryItem {
   quantity: number;
   unit?: string;
   is_bought: boolean;
+  category?: string; // Added category field
   created_at: string;
   updated_at: string;
 }
 
+const parseGroceryInput = (input: string): { name: string; quantity: number; unit: string | null } => {
+  let text = ` ${input.toLowerCase().trim()} `;
+  let quantity = 1;
+  let unit: string | null = null;
+  const quantityMatch = text.match(/ (\d+\.?\d*|\d+\/\d+|\d+) /);
+  if (quantityMatch) {
+    const numStr = quantityMatch[1];
+    if (numStr.includes('/')) {
+      const parts = numStr.split('/');
+      quantity = parseInt(parts[0], 10) / parseInt(parts[1], 10);
+    } else {
+      quantity = parseFloat(numStr);
+    }
+    text = text.replace(quantityMatch[0], ' ');
+  }
+  const units = ['kg', 'kilo', 'kilos', 'gramos', 'gr', 'g', 'litro', 'litros', 'lts', 'lt', 'l', 'ml', 'unidad', 'unidades', 'caja', 'cajas', 'botella', 'botellas', 'paquete', 'paquetes'];
+  const unitRegex = new RegExp(`\\b(${units.join('|')})s?\\b`);
+  const unitMatch = text.match(unitRegex);
+  if (unitMatch) {
+    unit = unitMatch[0];
+    text = text.replace(unitMatch[0], ' ');
+  }
+  let name = text.replace(/\sde\s/g, ' ').trim().replace(/ +/g, ' ');
+  name = name.charAt(0).toUpperCase() + name.slice(1);
+  return { name, quantity, unit };
+};
+
+const categoryKeywords: { [key: string]: string[] } = {
+  'Frutas y Verduras': ['manzana', 'platano', 'naranja', 'fresa', 'uva', 'lechuga', 'tomate', 'cebolla', 'patata', 'zanahoria', 'aguacate', 'pimiento', 'limon'],
+  'Carnes y Pescados': ['pollo', 'carne', 'res', 'cerdo', 'pescado', 'salmon', 'atun', 'jamon'],
+  'Lácteos y Huevos': ['leche', 'queso', 'yogur', 'mantequilla', 'crema', 'huevo'],
+  'Panadería y Cereales': ['pan', 'baguette', 'tostada', 'croissant', 'cereal', 'avena', 'arroz', 'pasta'],
+  'Bebidas': ['agua', 'zumo', 'refresco', 'cerveza', 'vino', 'cafe', 'te'],
+  'Limpieza': ['jabon', 'detergente', 'lejia', 'limpiador', 'esponja', 'servilleta', 'papel'],
+  'Higiene Personal': ['champu', 'acondicionador', 'gel', 'pasta de dientes', 'desodorante'],
+};
+
+const categorizeItem = (itemName: string): string => {
+  const lowerItemName = itemName.toLowerCase();
+  for (const category in categoryKeywords) {
+    if (categoryKeywords[category].some(keyword => lowerItemName.includes(keyword))) {
+      return category;
+    }
+  }
+  return 'Otros';
+};
+
+
+// --- (Main Component) ---
 const GroceryList: React.FC = () => {
   const [items, setItems] = useState<GroceryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [newItemName, setNewItemName] = useState('');
-  const [newItemQuantity, setNewItemQuantity] = useState<number | ''>(1);
-  const [newItemUnit, setNewItemUnit] = useState('');
+  const [smartInput, setSmartInput] = useState('');
   const [error, setError] = useState<string | null>(null);
+
+  // State for Undo functionality
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [lastCompletedItem, setLastCompletedItem] = useState<GroceryItem | null>(null);
 
   const fetchItems = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const { data, error } = await supabase
-        .from('grocery_items')
-        .select('*')
-        .order('created_at', { ascending: false });
-
+      const { data, error } = await supabase.from('grocery_items').select('*').order('created_at', { ascending: false });
       if (error) throw error;
-
       setItems(data || []);
     } catch (err: any) {
-      console.error('Error fetching grocery items:', err);
       setError('Error al cargar la lista: ' + err.message);
     } finally {
       setLoading(false);
@@ -51,98 +97,91 @@ const GroceryList: React.FC = () => {
 
   useEffect(() => {
     fetchItems();
-
-    // Set up Realtime subscription
-    const channel = supabase
-      .channel('grocery-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'grocery_items' }, (_payload) => {
-        // For simplicity, re-fetch all items on any change.
-        // For larger apps, more granular updates could be implemented.
-        fetchItems();
-      })
-      .subscribe();
-
-    return () => {
-      channel.unsubscribe();
-    };
+    const channel = supabase.channel('grocery-changes').on('postgres_changes', { event: '*', schema: 'public', table: 'grocery_items' }, fetchItems).subscribe();
+    return () => { channel.unsubscribe(); };
   }, [fetchItems]);
 
   const handleAddItem = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (!newItemName.trim()) {
-      setError('El nombre del artículo no puede estar vacío.');
+    if (!smartInput.trim()) {
+      setError('El campo no puede estar vacío.');
       return;
     }
-    if (newItemQuantity === '' || newItemQuantity <= 0) {
-      setError('La cantidad debe ser un número positivo.');
-      return;
-    }
-
     setSubmitting(true);
     setError(null);
 
+    const { name, quantity, unit } = parseGroceryInput(smartInput);
+    const category = categorizeItem(name);
+
+    if (!name) {
+        setError('No se pudo determinar el nombre del artículo.');
+        setSubmitting(false);
+        return;
+    }
+
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      // user_id can be null in grocery_items
-      const currentUserId = user ? user.id : null;
-
-      const { error } = await supabase
-        .from('grocery_items')
-        .insert({
-          user_id: currentUserId,
-          name: newItemName.trim(),
-          quantity: newItemQuantity,
-          unit: newItemUnit.trim() || null,
-        });
-
+      const { error } = await supabase.from('grocery_items').insert({
+        user_id: user?.id,
+        name,
+        quantity,
+        unit,
+        category, // Save the auto-detected category
+      });
       if (error) throw error;
-
-      setNewItemName('');
-      setNewItemQuantity(1);
-      setNewItemUnit('');
-      // fetchItems will be called by the Realtime subscription
+      setSmartInput('');
     } catch (err: any) {
-      console.error('Error adding item:', err);
       setError('Error al añadir artículo: ' + err.message);
     } finally {
       setSubmitting(false);
     }
   };
 
-  const handleToggleBought = async (id: string, currentStatus: boolean) => {
+  const handleToggleBought = async (item: GroceryItem) => {
     setError(null);
+    if (!item.is_bought) {
+      setLastCompletedItem(item);
+      setSnackbarOpen(true);
+    }
     try {
-      const { error } = await supabase
-        .from('grocery_items')
-        .update({ is_bought: !currentStatus })
-        .eq('id', id);
-
-      if (error) throw error;
-      // fetchItems will be called by the Realtime subscription
+      await supabase.from('grocery_items').update({ is_bought: !item.is_bought }).eq('id', item.id);
     } catch (err: any) {
-      console.error('Error updating item:', err);
       setError('Error al actualizar artículo: ' + err.message);
     }
   };
 
-  const handleDeleteItem = async (id: string) => {
-    if (!window.confirm('¿Estás seguro de que quieres eliminar este artículo?')) {
-      return;
+  const handleUndo = async () => {
+    if (lastCompletedItem) {
+      await handleToggleBought(lastCompletedItem);
+      setSnackbarOpen(false);
+      setLastCompletedItem(null);
     }
+  };
+
+  const handleDeleteItem = async (id: string) => {
+    if (!window.confirm('¿Estás seguro de que quieres eliminar este artículo?')) return;
     setError(null);
     try {
-      const { error } = await supabase
-        .from('grocery_items')
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
-      // fetchItems will be called by the Realtime subscription
+      await supabase.from('grocery_items').delete().eq('id', id);
     } catch (err: any) {
-      console.error('Error deleting item:', err);
       setError('Error al eliminar artículo: ' + err.message);
     }
   };
+
+  const handleSnackbarClose = (_event: React.SyntheticEvent | Event, reason?: string) => {
+    if (reason === 'clickaway') return;
+    setSnackbarOpen(false);
+  };
+
+  const pendingItems = items.filter(item => !item.is_bought);
+  const groupedItems = pendingItems.reduce((acc, item) => {
+    const category = item.category || 'Otros';
+    if (!acc[category]) {
+      acc[category] = [];
+    }
+    acc[category].push(item);
+    return acc;
+  }, {} as { [key: string]: GroceryItem[] });
 
   return (
     <motion.div
@@ -161,34 +200,14 @@ const GroceryList: React.FC = () => {
         <Typography variant="h6" gutterBottom color="text.primary">Añadir Nuevo Artículo</Typography>
         <Box component="form" onSubmit={handleAddItem} sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
           <TextField
-            label="Artículo"
+            label="Ej: 2 litros de leche, Pan integral, 6 manzanas..."
             type="text"
-            value={newItemName}
-            onChange={(e) => setNewItemName(e.target.value)}
+            value={smartInput}
+            onChange={(e) => setSmartInput(e.target.value)}
             fullWidth
             required
             variant="outlined"
           />
-          <Box sx={{ display: 'flex', gap: 2 }}>
-            <TextField
-              label="Cantidad"
-              type="number"
-              value={newItemQuantity}
-              onChange={(e) => setNewItemQuantity(parseFloat(e.target.value) || '')}
-              fullWidth
-              required
-              variant="outlined"
-              inputProps={{ min: "1" }}
-            />
-            <TextField
-              label="Unidad (Opcional)"
-              type="text"
-              value={newItemUnit}
-              onChange={(e) => setNewItemUnit(e.target.value)}
-              fullWidth
-              variant="outlined"
-            />
-          </Box>
           <Button
             type="submit"
             variant="contained"
@@ -204,58 +223,56 @@ const GroceryList: React.FC = () => {
       </Paper>
 
       <Paper elevation={3} sx={{ p: 3, bgcolor: 'background.paper' }}>
-        <Typography variant="h6" gutterBottom color="text.primary">Artículos de la Lista</Typography>
+        <Typography variant="h6" gutterBottom color="text.primary">Artículos Pendientes</Typography>
         {loading && <Box sx={{ display: 'flex', justifyContent: 'center', my: 2 }}><CircularProgress color="primary" /></Box>}
-        {!loading && items.length === 0 && (
+        {!loading && pendingItems.length === 0 && (
           <Typography variant="body2" color="text.secondary" textAlign="center" sx={{ mt: 2 }}>
-            La lista de mercado está vacía.
+            ¡No hay nada pendiente!
           </Typography>
         )}
-        <List>
-          {items.map((item) => (
-            <ListItem
-              key={item.id}
-              divider
-              sx={{
-                bgcolor: item.is_bought ? 'rgba(0, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.05)',
-                borderRadius: 1,
-                mb: 1,
-                textDecoration: item.is_bought ? 'line-through' : 'none',
-              }}
-            >
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    checked={item.is_bought}
-                    onChange={() => handleToggleBought(item.id, item.is_bought)}
-                    name={`item-${item.id}`}
-                    color="primary"
-                  />
-                }
-                label={
-                  <ListItemText
-                    primary={
-                      <Typography component="span" variant="body1" sx={{ fontWeight: 'bold' }}>
-                        {item.name}
-                      </Typography>
-                    }
-                    secondary={
-                      <Typography component="span" variant="body2" color="text.secondary" display="block">
-                        {item.quantity} {item.unit}
-                      </Typography>
-                    }
-                  />
-                }
-              />
-              <ListItemSecondaryAction>
-                <IconButton edge="end" aria-label="delete" onClick={() => handleDeleteItem(item.id)}>
-                  <DeleteIcon color="error" />
-                </IconButton>
-              </ListItemSecondaryAction>
-            </ListItem>
-          ))}
+        <List sx={{ width: '100%' }}>
+          <AnimatePresence>
+            {Object.keys(groupedItems).sort().map(category => (
+              <React.Fragment key={category}>
+                <ListSubheader sx={{ bgcolor: 'background.paper' }}>{category}</ListSubheader>
+                {groupedItems[category].map((item) => (
+                  <motion.div
+                    key={item.id}
+                    layout
+                    initial={{ opacity: 1, height: 'auto' }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, x: -300, height: 0 }}
+                    transition={{ duration: 0.4 }}
+                  >
+                    <ListItem
+                      divider
+                      sx={{ bgcolor: 'rgba(255, 255, 255, 0.05)', borderRadius: 1, mb: 1 }}
+                    >
+                      <FormControlLabel
+                        control={<Checkbox checked={false} onChange={() => handleToggleBought(item)} name={`item-${item.id}`} color="primary"/>}
+                        label={<ListItemText primary={<Typography component="span" variant="body1" sx={{ fontWeight: 'bold' }}>{item.name}</Typography>} secondary={<Typography component="span" variant="body2" color="text.secondary">{item.quantity} {item.unit}</Typography>}/>}
+                      />
+                      <ListItemSecondaryAction>
+                        <IconButton edge="end" aria-label="delete" onClick={() => handleDeleteItem(item.id)}>
+                          <DeleteIcon color="error" />
+                        </IconButton>
+                      </ListItemSecondaryAction>
+                    </ListItem>
+                  </motion.div>
+                ))}
+                </React.Fragment>
+            ))}
+          </AnimatePresence>
         </List>
       </Paper>
+
+      <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={6000}
+        onClose={handleSnackbarClose}
+        message="Artículo completado"
+        action={<Button color="secondary" size="small" onClick={handleUndo}>DESHACER</Button>}
+      />
     </motion.div>
   );
 };
