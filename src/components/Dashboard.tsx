@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Box, Typography, CircularProgress, Card, CardContent, Alert, Chip, IconButton, List, ListItem, ListItemText } from '@mui/material';
+import { Box, Typography, CircularProgress, Card, CardContent, Alert, Chip, IconButton, List, ListItem, ListItemText, Divider } from '@mui/material';
 import { motion, useMotionValue, useTransform, animate } from 'framer-motion';
 import { supabase } from '../supabaseClient';
 import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet';
@@ -37,6 +37,8 @@ const Dashboard: React.FC = () => {
   const [boughtItemsCount, setBoughtItemsCount] = useState(0);
   const [totalItemsCount, setTotalItemsCount] = useState(0);
   const [suggestedItems, setSuggestedItems] = useState<string[]>([]);
+  const [davidTotalSavings, setDavidTotalSavings] = useState(0);
+  const [andreaTotalSavings, setAndreaTotalSavings] = useState(0);
   
   // --- Framer Motion ---
   const count = useMotionValue(0);
@@ -52,17 +54,25 @@ const Dashboard: React.FC = () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Usuario no autenticado.");
-      const householdUserIds = Array.from(new Set([user.id, '45fc4c0d-f1ed-47bc-9fab-2ccda8e105a7']));
+      
+      // Define the static list of both household user IDs to ensure symmetrical data fetching.
+      // The user must replace the placeholder with their actual main user ID.
+      const householdUserIds = [
+        'c1ff78a6-4740-4734-b6d8-024cd85008f0', 
+        '45fc4c0d-f1ed-47bc-9fab-2ccda8e105a7'
+      ];
 
       // --- Fetch Data ---
-      const { data: savingsData, error: savingsError } = await supabase.from('savings_movements').select('created_at, type, amount').in('user_id', householdUserIds).order('created_at', { ascending: false });
+      const { data: savingsData, error: savingsError } = await supabase.from('savings_movements').select('created_at, type, amount, user_id').in('user_id', householdUserIds).order('created_at', { ascending: false });
       if (savingsError) throw savingsError;
       const movements = savingsData || [];
 
-      // Fetch grocery items including the new bought_at column
-      const { data: groceryData, error: groceryError } = await supabase.from('grocery_items').select('name, is_bought, created_at, bought_at').in('user_id', householdUserIds);
+      // Fetch all grocery items, including archived ones, for suggestion logic
+      const { data: allGroceryItems, error: groceryError } = await supabase.from('grocery_items').select('name, is_bought, is_archived, created_at, bought_at').in('user_id', householdUserIds);
       if (groceryError) throw groceryError;
-      const allGroceryItems = groceryData || [];
+      
+      // Active items are those not archived - for progress stats
+      const activeGroceryItems = allGroceryItems.filter(item => !item.is_archived);
 
       // --- Calculations ---
       const now = new Date();
@@ -70,6 +80,20 @@ const Dashboard: React.FC = () => {
       const currentTotalSavings = movements.reduce((sum, m) => sum + (m.type === 'deposit' ? m.amount : -m.amount), 0);
       setTotalSavings(currentTotalSavings);
 
+      // Individual Savings
+      const davidId = 'c1ff78a6-4740-4734-b6d8-024cd85008f0';
+      const andreaId = '45fc4c0d-f1ed-47bc-9fab-2ccda8e105a7';
+
+      const davidTotal = movements
+        .filter(m => m.user_id === davidId)
+        .reduce((sum, m) => sum + (m.type === 'deposit' ? m.amount : -m.amount), 0);
+      setDavidTotalSavings(davidTotal);
+
+      const andreaTotal = movements
+        .filter(m => m.user_id === andreaId)
+        .reduce((sum, m) => sum + (m.type === 'deposit' ? m.amount : -m.amount), 0);
+      setAndreaTotalSavings(andreaTotal);
+      
       // Key Stats
       const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
       const monthlyMovements = movements.filter(m => new Date(m.created_at) >= startOfMonth);
@@ -86,18 +110,15 @@ const Dashboard: React.FC = () => {
       const monthlyTotals = Object.values(savingsByMonth);
       const avgMonth = monthlyTotals.length > 0 ? monthlyTotals.reduce((sum, v) => sum + v, 0) / monthlyTotals.length : 0;
       setAvgMonthlySavings(avgMonth);
-
-      // Chip Metrics for Savings Card (logic can be added back here if needed)
-      // setChipData(...)
       
-      // Grocery Card - Progress
-      const boughtItems = allGroceryItems.filter(item => item.is_bought).length;
-      const totalItems = allGroceryItems.length;
+      // Grocery Card - Progress (using only ACTIVE items)
+      const boughtItems = activeGroceryItems.filter(item => item.is_bought).length;
+      const totalItems = activeGroceryItems.length;
       setBoughtItemsCount(boughtItems);
       setTotalItemsCount(totalItems);
       setShoppingProgress(totalItems > 0 ? (boughtItems / totalItems) * 100 : 0);
 
-      // Smart Suggestions (New Weekly Cycle Logic)
+      // Smart Suggestions (uses ALL items for history, but filters against ACTIVE pending items)
       const today = new Date();
       const dayOfWeek = today.getDay(); // Sunday = 0, Saturday = 6
       const lastSunday = new Date(today);
@@ -115,7 +136,9 @@ const Dashboard: React.FC = () => {
       });
 
       const uniqueLastWeekNames = new Set(boughtLastWeekItems.map(item => item.name.toLowerCase()));
-      const pendingItemNames = new Set(allGroceryItems.filter(item => !item.is_bought).map(item => item.name.toLowerCase()));
+      
+      // Pending items must be from the active list
+      const pendingItemNames = new Set(activeGroceryItems.filter(item => !item.is_bought).map(item => item.name.toLowerCase()));
 
       const suggestions = [];
       for (const name of uniqueLastWeekNames) {
@@ -177,10 +200,20 @@ const Dashboard: React.FC = () => {
             <Card elevation={3} sx={{ bgcolor: 'background.paper' }}>
                 <CardContent>
                     <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}><ShowChartIcon color="primary" sx={{ mr: 1, fontSize: 30 }} /><Typography variant="h5" color="text.primary">Estadísticas Clave</Typography></Box>
-                    <Box sx={{ textAlign: 'left', mt: 2 }}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', mb: 1.5 }}><SavingsIcon sx={{ mr: 1.5, color: 'text.secondary' }} /><Box><Typography variant="body1" color="text.secondary">Ahorro Neto este Mes:</Typography><Typography variant="h6" sx={{ fontWeight: 'bold', color: netMonthlySavings >= 0 ? 'success.main' : 'error.main' }}>COP {netMonthlySavings.toLocaleString('es-CO')}</Typography></Box></Box>
-                        <Box sx={{ display: 'flex', alignItems: 'center', mb: 1.5 }}><TrendingUpIcon sx={{ mr: 1.5, color: 'text.secondary' }} /><Box><Typography variant="body1" color="text.secondary">Ahorro Promedio Mensual:</Typography><Typography variant="h6" sx={{ fontWeight: 'bold', color: 'primary.main' }}>COP {Math.round(avgMonthlySavings).toLocaleString('es-CO')}</Typography></Box></Box>
-                        <Box sx={{ display: 'flex', alignItems: 'center' }}><EmojiEventsIcon sx={{ mr: 1.5, color: 'text.secondary' }} /><Box><Typography variant="body1" color="text.secondary">Depósito Más Grande:</Typography><Typography variant="h6" sx={{ fontWeight: 'bold', color: 'secondary.main' }}>COP {largestDeposit.toLocaleString('es-CO')}</Typography></Box></Box>
+                    <Box sx={{ display: 'flex', mt: 2 }}>
+                        {/* Left Column */}
+                        <Box sx={{ flex: 1, pr: 1 }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', mb: 1.5 }}><SavingsIcon sx={{ mr: 1.5, color: 'text.secondary' }} /><Box><Typography variant="body1" color="text.secondary">Ahorro Neto este Mes:</Typography><Typography variant="h6" sx={{ fontWeight: 'bold', color: netMonthlySavings >= 0 ? 'success.main' : 'error.main' }}>COP {netMonthlySavings.toLocaleString('es-CO')}</Typography></Box></Box>
+                            <Box sx={{ display: 'flex', alignItems: 'center', mb: 1.5 }}><TrendingUpIcon sx={{ mr: 1.5, color: 'text.secondary' }} /><Box><Typography variant="body1" color="text.secondary">Ahorro Promedio Mensual:</Typography><Typography variant="h6" sx={{ fontWeight: 'bold', color: 'primary.main' }}>COP {Math.round(avgMonthlySavings).toLocaleString('es-CO')}</Typography></Box></Box>
+                            <Box sx={{ display: 'flex', alignItems: 'center' }}><EmojiEventsIcon sx={{ mr: 1.5, color: 'text.secondary' }} /><Box><Typography variant="body1" color="text.secondary">Depósito Más Grande:</Typography><Typography variant="h6" sx={{ fontWeight: 'bold', color: 'secondary.main' }}>COP {largestDeposit.toLocaleString('es-CO')}</Typography></Box></Box>
+                        </Box>
+                        {/* Right Column */}
+                        <Divider orientation="vertical" flexItem sx={{ mx: 2 }} />
+                        <Box sx={{ flex: 1, pl: 1 }}>
+                            <Typography variant="h6" color="text.primary" gutterBottom>Ahorro Individual</Typography>
+                            <Box sx={{ display: 'flex', alignItems: 'center', mb: 1.5 }}><Typography variant="body1" color="text.secondary" sx={{ width: '80px' }}>David:</Typography><Typography variant="h6" sx={{ fontWeight: 'bold', color: 'info.main' }}>COP {davidTotalSavings.toLocaleString('es-CO')}</Typography></Box>
+                            <Box sx={{ display: 'flex', alignItems: 'center', mb: 1.5 }}><Typography variant="body1" color="text.secondary" sx={{ width: '80px' }}>Andrea:</Typography><Typography variant="h6" sx={{ fontWeight: 'bold', color: 'info.main' }}>COP {andreaTotalSavings.toLocaleString('es-CO')}</Typography></Box>
+                        </Box>
                     </Box>
                 </CardContent>
             </Card>

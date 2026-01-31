@@ -27,14 +27,19 @@ const Savings: React.FC = () => {
   const [newDescription, setNewDescription] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [totalSavings, setTotalSavings] = useState(0);
+  const [showHistory, setShowHistory] = useState(true);
 
   const fetchMovements = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Usuario no autenticado.");
+
       const { data, error } = await supabase
         .from('savings_movements')
         .select('*')
+        .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -199,61 +204,84 @@ const Savings: React.FC = () => {
       </Paper>
 
       <Paper elevation={3} sx={{ p: 3, bgcolor: 'background.paper' }}>
-        <Typography variant="h6" gutterBottom color="text.primary">Historial de Movimientos</Typography>
+        <Typography variant="h6" gutterBottom color="text.primary" onClick={() => setShowHistory(!showHistory)} sx={{ cursor: 'pointer' }}>
+          Historial de Movimientos
+        </Typography>
         {loading && <Box sx={{ display: 'flex', justifyContent: 'center', my: 2 }}><CircularProgress color="primary" /></Box>}
         {!loading && movements.length === 0 && (
           <Typography variant="body2" color="text.secondary" textAlign="center" sx={{ mt: 2 }}>
             No hay movimientos registrados aún.
           </Typography>
         )}
-        <List>
-          {movements.map((movement) => (
-            <ListItem
-              key={movement.id}
-              divider
-              sx={{
-                bgcolor: movement.type === 'deposit' ? 'rgba(57, 255, 20, 0.1)' : 'rgba(255, 20, 147, 0.1)',
-                borderRadius: 1,
-                mb: 1,
-              }}
-            >
-              <ListItemText
-                primary={
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <Typography component="span" variant="body1" sx={{ fontWeight: 'bold' }}>
-                      {movement.type === 'deposit' ? 'Depósito:' : 'Retiro:'}
-                    </Typography>
-                    <Typography
-                      component="span"
-                      variant="body1"
-                      sx={{
-                        fontWeight: 'bold',
-                        color: movement.type === 'deposit' ? 'primary.main' : 'error.main',
-                      }}
-                    >
-                      COP {movement.amount.toLocaleString('es-CO')}
-                    </Typography>
-                  </Box>
-                }
-                secondary={
-                  <>
-                    <Typography component="span" variant="body2" color="text.secondary" display="block">
-                      {movement.description || 'Sin descripción'}
-                    </Typography>
-                    <Typography component="span" variant="caption" color="text.disabled" display="block">
-                      {new Date(movement.created_at).toLocaleString('es-CO')}
-                    </Typography>
-                  </>
-                }
-              />
-              <ListItemSecondaryAction>
-                <IconButton edge="end" aria-label="delete" onClick={() => handleDeleteMovement(movement.id)}>
-                  <DeleteIcon color="error" />
-                </IconButton>
-              </ListItemSecondaryAction>
-            </ListItem>
-          ))}
-        </List>
+        {showHistory && (
+          <List sx={{
+            width: '100%',
+            maxHeight: '400px', // Limit height for scrollbar
+            overflow: 'auto',
+            '&::-webkit-scrollbar': {
+              width: '8px',
+            },
+            '&::-webkit-scrollbar-track': {
+              background: '#333',
+            },
+            '&::-webkit-scrollbar-thumb': {
+              backgroundColor: '#00ff00', // Neon Green
+              borderRadius: '10px',
+              boxShadow: '0 0 5px #00ff00, 0 0 10px #00ff00, 0 0 15px #00ff00', // Neon glow
+            },
+            '&::-webkit-scrollbar-thumb:hover': {
+              backgroundColor: '#00cc00',
+              boxShadow: '0 0 5px #00cc00, 0 0 10px #00cc00, 0 0 15px #00cc00',
+            },
+          }}>
+            {movements.map((movement) => (
+              <ListItem
+                key={movement.id}
+                divider
+                sx={{
+                  bgcolor: movement.type === 'deposit' ? 'rgba(57, 255, 20, 0.1)' : 'rgba(255, 20, 147, 0.1)',
+                  borderRadius: 1,
+                  mb: 1,
+                }}
+              >
+                <ListItemText
+                  primary={
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <Typography component="span" variant="body1" sx={{ fontWeight: 'bold' }}>
+                        {movement.type === 'deposit' ? 'Depósito:' : 'Retiro:'}
+                      </Typography>
+                      <Typography
+                        component="span"
+                        variant="body1"
+                        sx={{
+                          fontWeight: 'bold',
+                          color: movement.type === 'deposit' ? 'primary.main' : 'error.main',
+                        }}
+                      >
+                        COP {movement.amount.toLocaleString('es-CO')}
+                      </Typography>
+                    </Box>
+                  }
+                  secondary={
+                    <>
+                      <Typography component="span" variant="body2" color="text.secondary" display="block">
+                        {movement.description || 'Sin descripción'}
+                      </Typography>
+                      <Typography component="span" variant="caption" color="text.disabled" display="block">
+                        {new Date(movement.created_at).toLocaleString('es-CO')}
+                      </Typography>
+                    </>
+                  }
+                />
+                <ListItemSecondaryAction>
+                  <IconButton edge="end" aria-label="delete" onClick={() => handleDeleteMovement(movement.id)}>
+                    <DeleteIcon color="error" />
+                  </IconButton>
+                </ListItemSecondaryAction>
+              </ListItem>
+            ))}
+          </List>
+        )}
       </Paper>
     </motion.div>
   );

@@ -7,6 +7,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../supabaseClient';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
+import ArchiveIcon from '@mui/icons-material/Archive';
+import UnarchiveIcon from '@mui/icons-material/Unarchive';
 
 // --- (Types and Helper Functions) ---
 interface GroceryItem {
@@ -16,6 +18,7 @@ interface GroceryItem {
   quantity: number;
   unit?: string;
   is_bought: boolean;
+  is_archived: boolean;
   category?: string; // Added category field
   created_at: string;
   updated_at: string;
@@ -76,6 +79,8 @@ const GroceryList: React.FC = () => {
   const [submitting, setSubmitting] = useState(false);
   const [smartInput, setSmartInput] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [showArchived, setShowArchived] = useState(false);
+  const [showBoughtItems, setShowBoughtItems] = useState(true);
 
   // State for Undo functionality
   const [snackbarOpen, setSnackbarOpen] = useState(false);
@@ -85,7 +90,19 @@ const GroceryList: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      const { data, error } = await supabase.from('grocery_items').select('*').order('created_at', { ascending: false });
+      // Define the static list of both household user IDs to ensure symmetrical data fetching.
+      // The user must replace the placeholder with their actual main user ID.
+      const householdUserIds = [
+        'c1ff78a6-4740-4734-b6d8-024cd85008f0', 
+        '45fc4c0d-f1ed-47bc-9fab-2ccda8e105a7'
+      ];
+
+      const { data, error } = await supabase
+        .from('grocery_items')
+        .select('*')
+        .in('user_id', householdUserIds)
+        .order('created_at', { ascending: false });
+
       if (error) throw error;
       setItems(data || []);
     } catch (err: any) {
@@ -127,6 +144,7 @@ const GroceryList: React.FC = () => {
         quantity,
         unit,
         category, // Save the auto-detected category
+        is_archived: false, // Ensure new items are not archived
       });
       if (error) throw error;
       setSmartInput('');
@@ -157,6 +175,52 @@ const GroceryList: React.FC = () => {
     }
   };
 
+  const handleArchiveItem = async (id: string) => {
+    setError(null);
+    try {
+      await supabase.from('grocery_items').update({ is_archived: true }).eq('id', id);
+    } catch (err: any) {
+      setError('Error al archivar artículo: ' + err.message);
+    }
+  };
+
+  const handleUnarchiveItem = async (name: string) => {
+    setError(null);
+    try {
+      // 1. Find all archived items with this name to get their IDs
+      const { data: itemsToDelete, error: fetchError } = await supabase
+        .from('grocery_items')
+        .select('id')
+        .eq('name', name)
+        .eq('is_archived', true);
+
+      if (fetchError) throw fetchError;
+      const idsToDelete = itemsToDelete.map(item => item.id);
+
+      // 2. Delete all those old archived items
+      if (idsToDelete.length > 0) {
+        const { error: deleteError } = await supabase.from('grocery_items').delete().in('id', idsToDelete);
+        if (deleteError) throw deleteError;
+      }
+
+      // 3. Add a single new item back to the pending list
+      const { data: { user } } = await supabase.auth.getUser();
+      const category = categorizeItem(name);
+      const { error: insertError } = await supabase.from('grocery_items').insert({
+        user_id: user?.id,
+        name: name,
+        quantity: 1, // Default quantity
+        is_bought: false,
+        is_archived: false,
+        category: category,
+      });
+      if (insertError) throw insertError;
+
+    } catch (err: any) {
+      setError('Error al desarchivar artículo: ' + err.message);
+    }
+  };
+
   const handleUndo = async () => {
     if (lastCompletedItem) {
       await handleToggleBought(lastCompletedItem);
@@ -165,23 +229,16 @@ const GroceryList: React.FC = () => {
     }
   };
 
-  const handleDeleteItem = async (id: string) => {
-    if (!window.confirm('¿Estás seguro de que quieres eliminar este artículo?')) return;
-    setError(null);
-    try {
-      await supabase.from('grocery_items').delete().eq('id', id);
-    } catch (err: any) {
-      setError('Error al eliminar artículo: ' + err.message);
-    }
-  };
-
   const handleSnackbarClose = (_event: React.SyntheticEvent | Event, reason?: string) => {
     if (reason === 'clickaway') return;
     setSnackbarOpen(false);
   };
 
-  const pendingItems = items.filter(item => !item.is_bought);
-  const groupedItems = pendingItems.reduce((acc, item) => {
+  const pendingItems = items.filter(item => !item.is_bought && !item.is_archived);
+  const boughtItems = items.filter(item => item.is_bought && !item.is_archived);
+  const archivedItems = items.filter(item => item.is_archived);
+
+  const groupItems = (itemsToGroup: GroceryItem[]) => itemsToGroup.reduce((acc, item) => {
     const category = item.category || 'Otros';
     if (!acc[category]) {
       acc[category] = [];
@@ -189,6 +246,15 @@ const GroceryList: React.FC = () => {
     acc[category].push(item);
     return acc;
   }, {} as { [key: string]: GroceryItem[] });
+
+  const groupedPendingItems = groupItems(pendingItems);
+  const groupedBoughtItems = groupItems(boughtItems);
+  
+  // Create a de-duplicated list for the archived view
+  const uniqueArchivedItems = [...new Map(archivedItems.map(item => [item.name, item])).values()];
+  const groupedArchivedItems = groupItems(uniqueArchivedItems);
+
+
 
   return (
     <motion.div
@@ -203,6 +269,7 @@ const GroceryList: React.FC = () => {
 
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
+      {/* Add Item Form */}
       <Paper elevation={3} sx={{ p: 3, mb: 3, bgcolor: 'background.paper' }}>
         <Typography variant="h6" gutterBottom color="text.primary">Añadir Nuevo Artículo</Typography>
         <Box component="form" onSubmit={handleAddItem} sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -215,63 +282,169 @@ const GroceryList: React.FC = () => {
             required
             variant="outlined"
           />
-          <Button
-            type="submit"
-            variant="contained"
-            color="primary"
-            fullWidth
-            disabled={submitting}
-            startIcon={submitting ? <CircularProgress size={20} color="inherit" /> : <AddCircleOutlineIcon />}
-            sx={{ mt: 1, height: 50 }}
-          >
+          <Button type="submit" variant="contained" color="primary" fullWidth disabled={submitting} startIcon={submitting ? <CircularProgress size={20} color="inherit" /> : <AddCircleOutlineIcon />} sx={{ mt: 1, height: 50 }}>
             {submitting ? 'Guardando...' : 'Añadir a la Lista'}
           </Button>
         </Box>
       </Paper>
 
-      <Paper elevation={3} sx={{ p: 3, bgcolor: 'background.paper' }}>
-        <Typography variant="h6" gutterBottom color="text.primary">Artículos Pendientes</Typography>
-        {loading && <Box sx={{ display: 'flex', justifyContent: 'center', my: 2 }}><CircularProgress color="primary" /></Box>}
-        {!loading && pendingItems.length === 0 && (
-          <Typography variant="body2" color="text.secondary" textAlign="center" sx={{ mt: 2 }}>
-            ¡No hay nada pendiente!
-          </Typography>
-        )}
-        <List sx={{ width: '100%' }}>
-          <AnimatePresence>
-            {Object.keys(groupedItems).sort().map(category => (
-              <React.Fragment key={category}>
-                <ListSubheader sx={{ bgcolor: 'background.paper' }}>{category}</ListSubheader>
-                {groupedItems[category].map((item) => (
-                  <motion.div
-                    key={item.id}
-                    layout
-                    initial={{ opacity: 1, height: 'auto' }}
-                    animate={{ opacity: 1, height: 'auto' }}
-                    exit={{ opacity: 0, x: -300, height: 0 }}
-                    transition={{ duration: 0.4 }}
-                  >
-                    <ListItem
-                      divider
-                      sx={{ bgcolor: 'rgba(255, 255, 255, 0.05)', borderRadius: 1, mb: 1 }}
-                    >
-                      <FormControlLabel
-                        control={<Checkbox checked={false} onChange={() => handleToggleBought(item)} name={`item-${item.id}`} color="primary"/>}
-                        label={<ListItemText primary={<Typography component="span" variant="body1" sx={{ fontWeight: 'bold' }}>{item.name}</Typography>} secondary={<Typography component="span" variant="body2" color="text.secondary">{item.quantity} {item.unit}</Typography>}/>}
-                      />
-                      <ListItemSecondaryAction>
-                        <IconButton edge="end" aria-label="delete" onClick={() => handleDeleteItem(item.id)}>
-                          <DeleteIcon color="error" />
-                        </IconButton>
-                      </ListItemSecondaryAction>
-                    </ListItem>
-                  </motion.div>
-                ))}
+      {/* Loading Spinner */}
+      {loading && <Box sx={{ display: 'flex', justifyContent: 'center', my: 2 }}><CircularProgress color="primary" /></Box>}
+
+      {/* Pending Items */}
+      {!loading && (
+        <Paper elevation={3} sx={{ p: 3, mb: 3, bgcolor: 'background.paper' }}>
+          <Typography variant="h6" gutterBottom color="text.primary">Artículos Pendientes</Typography>
+          {pendingItems.length === 0 && <Typography variant="body2" color="text.secondary" textAlign="center" sx={{ mt: 2 }}>¡No hay nada pendiente!</Typography>}
+          <List sx={{
+            width: '100%',
+            maxHeight: '400px', // Limit height for scrollbar
+            overflow: 'auto',
+            '&::-webkit-scrollbar': {
+              width: '8px',
+            },
+            '&::-webkit-scrollbar-track': {
+              background: '#333',
+            },
+            '&::-webkit-scrollbar-thumb': {
+              backgroundColor: '#00ff00', // Neon Green
+              borderRadius: '10px',
+              boxShadow: '0 0 5px #00ff00, 0 0 10px #00ff00, 0 0 15px #00ff00', // Neon glow
+            },
+            '&::-webkit-scrollbar-thumb:hover': {
+              backgroundColor: '#00cc00',
+              boxShadow: '0 0 5px #00cc00, 0 0 10px #00cc00, 0 0 15px #00cc00',
+            },
+          }}>
+            <AnimatePresence>
+              {Object.keys(groupedPendingItems).sort().map(category => (
+                <React.Fragment key={category}>
+                  <ListSubheader sx={{ bgcolor: 'background.paper' }}>{category}</ListSubheader>
+                  {groupedPendingItems[category].map((item) => (
+                    <motion.div key={item.id} layout exit={{ opacity: 0, x: -300, height: 0 }} transition={{ duration: 0.4 }}>
+                      <ListItem divider sx={{ bgcolor: 'rgba(255, 255, 255, 0.05)', borderRadius: 1, mb: 1 }}>
+                        <FormControlLabel
+                          control={<Checkbox checked={item.is_bought} onChange={() => handleToggleBought(item)} name={`item-${item.id}`} color="primary"/>}
+                          label={<ListItemText primary={<Typography component="span" variant="body1" sx={{ fontWeight: 'bold' }}>{item.name}</Typography>} secondary={`${item.quantity} ${item.unit || ''}`}/>}
+                        />
+                      </ListItem>
+                    </motion.div>
+                  ))}
                 </React.Fragment>
-            ))}
-          </AnimatePresence>
-        </List>
-      </Paper>
+              ))}
+            </AnimatePresence>
+          </List>
+        </Paper>
+      )}
+
+      {/* Bought Items */}
+      {!loading && boughtItems.length > 0 && (
+        <Paper elevation={3} sx={{ p: 3, mb: 3, bgcolor: 'background.paper' }}>
+          <Typography variant="h6" gutterBottom color="text.primary" onClick={() => setShowBoughtItems(!showBoughtItems)} sx={{ cursor: 'pointer' }}>
+            Artículos Comprados
+          </Typography>
+          {showBoughtItems && (
+            <List sx={{
+            width: '100%',
+            maxHeight: '400px', // Limit height for scrollbar
+            overflow: 'auto',
+            '&::-webkit-scrollbar': {
+              width: '8px',
+            },
+            '&::-webkit-scrollbar-track': {
+              background: '#333',
+            },
+            '&::-webkit-scrollbar-thumb': {
+              backgroundColor: '#00ff00', // Neon Green
+              borderRadius: '10px',
+              boxShadow: '0 0 5px #00ff00, 0 0 10px #00ff00, 0 0 15px #00ff00', // Neon glow
+            },
+            '&::-webkit-scrollbar-thumb:hover': {
+              backgroundColor: '#00cc00',
+              boxShadow: '0 0 5px #00cc00, 0 0 10px #00cc00, 0 0 15px #00cc00',
+            },
+          }}>
+              <AnimatePresence>
+                {Object.keys(groupedBoughtItems).sort().map(category => (
+                  <React.Fragment key={category}>
+                    <ListSubheader sx={{ bgcolor: 'background.paper' }}>{category}</ListSubheader>
+                    {groupedBoughtItems[category].map((item) => (
+                      <motion.div key={item.id} layout exit={{ opacity: 0, x: 300, height: 0 }} transition={{ duration: 0.4 }}>
+                        <ListItem divider sx={{ bgcolor: 'rgba(255, 255, 255, 0.05)', borderRadius: 1, mb: 1, textDecoration: 'line-through', color: 'text.secondary' }}>
+                          <FormControlLabel
+                            control={<Checkbox checked={item.is_bought} onChange={() => handleToggleBought(item)} name={`item-${item.id}`} color="primary"/>}
+                            label={<ListItemText primary={<Typography component="span" variant="body1">{item.name}</Typography>} secondary={`${item.quantity} ${item.unit || ''}`}/>}
+                          />
+                          <ListItemSecondaryAction>
+                            <IconButton edge="end" aria-label="archive" onClick={() => handleArchiveItem(item.id)}>
+                              <ArchiveIcon />
+                            </IconButton>
+                          </ListItemSecondaryAction>
+                        </ListItem>
+                      </motion.div>
+                    ))}
+                  </React.Fragment>
+                ))}
+              </AnimatePresence>
+            </List>
+          )}
+        </Paper>
+      )}
+
+      {/* Archived Items */}
+      {!loading && (
+        <Box sx={{ mt: 2, textAlign: 'center' }}>
+          <Button onClick={() => setShowArchived(!showArchived)}>
+            {showArchived ? 'Ocultar Archivados' : `Mostrar ${uniqueArchivedItems.length} Archivados`}
+          </Button>
+          {showArchived && (
+            <Paper elevation={3} sx={{ p: 3, mt: 2, bgcolor: 'background.paper' }}>
+              <Typography variant="h6" gutterBottom color="text.primary">Archivados</Typography>
+              {uniqueArchivedItems.length === 0 && <Typography variant="body2" color="text.secondary" textAlign="center" sx={{ mt: 2 }}>No hay artículos archivados.</Typography>}
+              <List sx={{
+            width: '100%',
+            maxHeight: '400px', // Limit height for scrollbar
+            overflow: 'auto',
+            '&::-webkit-scrollbar': {
+              width: '8px',
+            },
+            '&::-webkit-scrollbar-track': {
+              background: '#333',
+            },
+            '&::-webkit-scrollbar-thumb': {
+              backgroundColor: '#00ff00', // Neon Green
+              borderRadius: '10px',
+              boxShadow: '0 0 5px #00ff00, 0 0 10px #00ff00, 0 0 15px #00ff00', // Neon glow
+            },
+            '&::-webkit-scrollbar-thumb:hover': {
+              backgroundColor: '#00cc00',
+              boxShadow: '0 0 5px #00cc00, 0 0 10px #00cc00, 0 0 15px #00cc00',
+            },
+          }}>
+                <AnimatePresence>
+                  {Object.keys(groupedArchivedItems).sort().map(category => (
+                    <React.Fragment key={category}>
+                      <ListSubheader sx={{ bgcolor: 'background.paper' }}>{category}</ListSubheader>
+                      {groupedArchivedItems[category].map((item) => (
+                        <motion.div key={item.id} layout exit={{ opacity: 0 }} transition={{ duration: 0.4 }}>
+                          <ListItem divider sx={{ borderRadius: 1, mb: 1 }}>
+                            <ListItemText primary={<Typography component="span" variant="body1" sx={{ color: 'text.disabled' }}>{item.name}</Typography>} />
+                            <ListItemSecondaryAction>
+                              <IconButton edge="end" aria-label="unarchive" onClick={() => handleUnarchiveItem(item.name)}>
+                                <UnarchiveIcon color="secondary" />
+                              </IconButton>
+                            </ListItemSecondaryAction>
+                          </ListItem>
+                        </motion.div>
+                      ))}
+                    </React.Fragment>
+                  ))}
+                </AnimatePresence>
+              </List>
+            </Paper>
+          )}
+        </Box>
+      )}
 
       <Snackbar
         open={snackbarOpen}
