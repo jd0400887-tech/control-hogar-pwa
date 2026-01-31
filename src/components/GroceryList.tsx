@@ -380,7 +380,7 @@ const GroceryList: React.FC = () => {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
-      style={{ maxWidth: '600px', margin: 'auto', padding: '16px' }}
+      style={{ width: '100%' }}
     >
       <Header />
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
@@ -390,7 +390,7 @@ const GroceryList: React.FC = () => {
 
       {/* Pending Items */}
       {!loading && (
-        <Paper elevation={3} sx={{ p: 3, mb: 3, bgcolor: 'background.paper' }}>
+        <Paper elevation={3} sx={{ px: 1, py: 2, mb: 3, bgcolor: 'background.paper' }}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
             <FormControl sx={{ minWidth: 150 }} size="small">
               <InputLabel>Categoría</InputLabel>
@@ -457,7 +457,7 @@ const GroceryList: React.FC = () => {
 
       {/* Bought Items */}
       {!loading && boughtItems.length > 0 && (
-        <Paper elevation={3} sx={{ p: 3, mb: 3, bgcolor: 'background.paper' }}>
+        <Paper elevation={3} sx={{ px: 1, py: 2, mb: 3, bgcolor: 'background.paper' }}>
           <Typography variant="body1" gutterBottom color="text.primary" onClick={() => setShowBoughtItems(!showBoughtItems)} sx={{ cursor: 'pointer' }}>
             Artículos Comprados
           </Typography>
@@ -519,7 +519,7 @@ const GroceryList: React.FC = () => {
             {showArchived ? 'Ocultar Archivados' : `Mostrar ${uniqueArchivedItems.length} Archivados`}
           </Button>
           {showArchived && (
-            <Paper elevation={3} sx={{ p: 3, mt: 2, bgcolor: 'background.paper' }}>
+            <Paper elevation={3} sx={{ px: 1, py: 2, mt: 2, bgcolor: 'background.paper' }}>
               <Typography variant="body1" gutterBottom color="text.primary">Archivados</Typography>
               {uniqueArchivedItems.length === 0 && <Typography variant="caption" color="text.secondary" textAlign="center" sx={{ mt: 2 }}>No hay artículos archivados.</Typography>}
               <List sx={{
