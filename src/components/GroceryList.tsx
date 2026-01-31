@@ -26,6 +26,7 @@ import {
   Snackbar,
   TextField,
   Typography,
+  Fab,
 } from '@mui/material';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../supabaseClient';
@@ -35,6 +36,7 @@ import ArchiveIcon from '@mui/icons-material/Archive';
 import UnarchiveIcon from '@mui/icons-material/Unarchive';
 import SortByAlphaIcon from '@mui/icons-material/SortByAlpha';
 import EditIcon from '@mui/icons-material/Edit';
+import AddIcon from '@mui/icons-material/Add';
 import Header from './Header';
 
 // --- (Types and Helper Functions) ---
@@ -115,6 +117,9 @@ const GroceryList: React.FC = () => {
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [itemToEdit, setItemToEdit] = useState<GroceryItem | null>(null);
 
+  // State for Add Item Modal
+  const [addItemModalOpen, setAddItemModalOpen] = useState(false);
+
   // State for Edit Modal Form
   const [editedItemName, setEditedItemName] = useState('');
   const [editedItemCategory, setEditedItemCategory] = useState('');
@@ -192,6 +197,7 @@ const GroceryList: React.FC = () => {
       });
       if (error) throw error;
       setSmartInput('');
+      setAddItemModalOpen(false); // Close modal on success
     } catch (err: any) {
       setError('Error al añadir artículo: ' + err.message);
     } finally {
@@ -379,54 +385,28 @@ const GroceryList: React.FC = () => {
       <Header />
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
-      {/* Add Item Form */}
-      <Paper elevation={3} sx={{ p: 2, mb: 3, bgcolor: 'background.paper' }}>
-        <Typography variant="body1" gutterBottom color="text.primary">Añadir Nuevo Artículo</Typography>
-        <Box component="form" onSubmit={handleAddItem} sx={{ display: 'flex', gap: 2 }}>
-          <TextField
-            label="Añadir item y presionar Enter..."
-            type="text"
-            value={smartInput}
-            onChange={(e) => setSmartInput(e.target.value)}
-            fullWidth
-            required
-            variant="outlined"
-            size="small"
-            InputProps={{
-              endAdornment: (
-                <InputAdornment position="end">
-                  <IconButton type="submit" disabled={submitting} edge="end">
-                    {submitting ? <CircularProgress size={24} /> : <AddCircleOutlineIcon />}
-                  </IconButton>
-                </InputAdornment>
-              ),
-            }}
-          />
-        </Box>
-      </Paper>
-
       {/* Loading Spinner */}
       {loading && <Box sx={{ display: 'flex', justifyContent: 'center', my: 2 }}><CircularProgress color="primary" /></Box>}
 
       {/* Pending Items */}
       {!loading && (
         <Paper elevation={3} sx={{ p: 3, mb: 3, bgcolor: 'background.paper' }}>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Typography variant="body1" gutterBottom color="text.primary">Artículos Pendientes</Typography>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+            <FormControl sx={{ minWidth: 150 }} size="small">
+              <InputLabel>Categoría</InputLabel>
+              <Select
+                value={categoryFilter}
+                label="Categoría"
+                onChange={(e) => setCategoryFilter(e.target.value)}
+              >
+                {allCategories.map(category => (
+                  <MenuItem key={category} value={category}>{category}</MenuItem>
+                ))}
+              </Select>
+            </FormControl>
             <IconButton onClick={() => setSortBy(sortBy === 'alpha' ? 'time' : 'alpha')} color={sortBy === 'alpha' ? 'primary' : 'default'}>
               <SortByAlphaIcon />
             </IconButton>
-          </Box>
-          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, my: 2 }}>
-            {allCategories.map(category => (
-              <Chip
-                key={category}
-                label={category}
-                onClick={() => setCategoryFilter(category)}
-                variant={categoryFilter === category ? 'filled' : 'outlined'}
-                size="small"
-              />
-            ))}
           </Box>
           {Object.keys(groupedPendingItems).length === 0 && <Typography variant="caption" color="text.secondary" textAlign="center" sx={{ mt: 2 }}>¡No hay nada pendiente para esta categoría!</Typography>}
           <List sx={{
@@ -632,6 +612,45 @@ const GroceryList: React.FC = () => {
               {submitting ? <CircularProgress size={24} /> : 'Guardar'}
             </Button>
           </Box>
+        </DialogActions>
+      </Dialog>
+
+      {/* Add Item FAB */}
+      <Fab
+        color="primary"
+        aria-label="add"
+        sx={{
+          position: 'fixed',
+          bottom: 80, // Adjust to be above bottom navigation
+          right: 16,
+        }}
+        onClick={() => setAddItemModalOpen(true)}
+      >
+        <AddIcon />
+      </Fab>
+
+      {/* Add Item Modal */}
+      <Dialog open={addItemModalOpen} onClose={() => setAddItemModalOpen(false)} fullWidth maxWidth="sm">
+        <DialogTitle>Añadir Nuevo Artículo</DialogTitle>
+        <DialogContent>
+          <Box component="form" onSubmit={handleAddItem} id="add-item-form" sx={{ pt: 1 }}>
+            <TextField
+              autoFocus
+              label="Ej: 2 litros de leche, Pan integral..."
+              type="text"
+              value={smartInput}
+              onChange={(e) => setSmartInput(e.target.value)}
+              fullWidth
+              required
+              variant="standard"
+            />
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setAddItemModalOpen(false)}>Cancelar</Button>
+          <Button type="submit" form="add-item-form" color="primary" disabled={submitting}>
+            {submitting ? <CircularProgress size={24} /> : 'Añadir'}
+          </Button>
         </DialogActions>
       </Dialog>
     </motion.div>
