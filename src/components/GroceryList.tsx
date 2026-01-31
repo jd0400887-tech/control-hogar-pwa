@@ -1,7 +1,31 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
-  Box, Typography, Button, TextField, CircularProgress, List, ListItem, ListItemText,
-  ListItemSecondaryAction, IconButton, Checkbox, FormControlLabel, Alert, Paper, Snackbar, ListSubheader
+  Alert,
+  Box,
+  Button,
+  Checkbox,
+  Chip,
+  CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  FormControl,
+  FormControlLabel,
+  IconButton,
+  InputAdornment,
+  InputLabel,
+  List,
+  ListItem,
+  ListItemText,
+  ListItemSecondaryAction,
+  ListSubheader,
+  MenuItem,
+  Paper,
+  Select,
+  Snackbar,
+  TextField,
+  Typography,
 } from '@mui/material';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../supabaseClient';
@@ -9,6 +33,8 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 import ArchiveIcon from '@mui/icons-material/Archive';
 import UnarchiveIcon from '@mui/icons-material/Unarchive';
+import SortByAlphaIcon from '@mui/icons-material/SortByAlpha';
+import EditIcon from '@mui/icons-material/Edit';
 
 // --- (Types and Helper Functions) ---
 interface GroceryItem {
@@ -81,6 +107,23 @@ const GroceryList: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [showArchived, setShowArchived] = useState(false);
   const [showBoughtItems, setShowBoughtItems] = useState(true);
+  const [categoryFilter, setCategoryFilter] = useState<string>('All');
+  const [sortBy, setSortBy] = useState<'time' | 'alpha'>('time');
+
+  // State for Edit Modal
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [itemToEdit, setItemToEdit] = useState<GroceryItem | null>(null);
+
+  // State for Edit Modal Form
+  const [editedItemName, setEditedItemName] = useState('');
+  const [editedItemCategory, setEditedItemCategory] = useState('');
+
+  useEffect(() => {
+    if (itemToEdit) {
+      setEditedItemName(itemToEdit.name);
+      setEditedItemCategory(itemToEdit.category || 'Otros');
+    }
+  }, [itemToEdit]);
 
   // State for Undo functionality
   const [snackbarOpen, setSnackbarOpen] = useState(false);
@@ -234,6 +277,55 @@ const GroceryList: React.FC = () => {
     setSnackbarOpen(false);
   };
 
+  const handleOpenEditModal = (item: GroceryItem) => {
+    setItemToEdit(item);
+    setEditModalOpen(true);
+  };
+
+  const handleCloseEditModal = () => {
+    setEditModalOpen(false);
+    setItemToEdit(null);
+  };
+
+  const handleUpdateItem = async () => {
+    if (!itemToEdit) return;
+    setSubmitting(true);
+    try {
+      const { error } = await supabase
+        .from('grocery_items')
+        .update({ name: editedItemName, category: editedItemCategory })
+        .eq('id', itemToEdit.id);
+      
+      if (error) throw error;
+      
+      handleCloseEditModal();
+    } catch (err: any) {
+      setError('Error al actualizar el artículo: ' + err.message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleDeleteItem = async () => {
+    if (!itemToEdit) return;
+
+    if (window.confirm(`¿Estás seguro de que quieres ELIMINAR PERMANENTEMENTE "${itemToEdit.name}"? Esta acción no se puede deshacer.`)) {
+      try {
+        const { error } = await supabase
+          .from('grocery_items')
+          .delete()
+          .eq('id', itemToEdit.id);
+
+        if (error) throw error;
+        
+        handleCloseEditModal();
+      } catch (err: any) {
+        setError('Error al eliminar el artículo: ' + err.message);
+      }
+    }
+  };
+
+
   const pendingItems = items.filter(item => !item.is_bought && !item.is_archived);
   const boughtItems = items.filter(item => item.is_bought && !item.is_archived);
   const archivedItems = items.filter(item => item.is_archived);
@@ -247,7 +339,27 @@ const GroceryList: React.FC = () => {
     return acc;
   }, {} as { [key: string]: GroceryItem[] });
 
-  const groupedPendingItems = groupItems(pendingItems);
+  const allCategories = useMemo(() => ['All', ...new Set(pendingItems.map(item => item.category || 'Otros'))], [pendingItems]);
+
+  const groupedPendingItems = useMemo(() => {
+    let processedItems = [...pendingItems];
+
+    // Filter by category
+    if (categoryFilter !== 'All') {
+      processedItems = processedItems.filter(item => (item.category || 'Otros') === categoryFilter);
+    }
+
+    // Sort items
+    if (sortBy === 'alpha') {
+      processedItems.sort((a, b) => a.name.localeCompare(b.name));
+    }
+    // 'time' sort is the default as items are fetched in that order
+
+    // Group items
+    return groupItems(processedItems);
+
+  }, [pendingItems, categoryFilter, sortBy]);
+
   const groupedBoughtItems = groupItems(boughtItems);
   
   // Create a de-duplicated list for the archived view
@@ -270,21 +382,28 @@ const GroceryList: React.FC = () => {
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
       {/* Add Item Form */}
-      <Paper elevation={3} sx={{ p: 3, mb: 3, bgcolor: 'background.paper' }}>
-        <Typography variant="h6" gutterBottom color="text.primary">Añadir Nuevo Artículo</Typography>
-        <Box component="form" onSubmit={handleAddItem} sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+      <Paper elevation={3} sx={{ p: 2, mb: 3, bgcolor: 'background.paper' }}>
+        <Typography variant="body1" gutterBottom color="text.primary">Añadir Nuevo Artículo</Typography>
+        <Box component="form" onSubmit={handleAddItem} sx={{ display: 'flex', gap: 2 }}>
           <TextField
-            label="Ej: 2 litros de leche, Pan integral, 6 manzanas..."
+            label="Añadir item y presionar Enter..."
             type="text"
             value={smartInput}
             onChange={(e) => setSmartInput(e.target.value)}
             fullWidth
             required
             variant="outlined"
+            size="small"
+            InputProps={{
+              endAdornment: (
+                <InputAdornment position="end">
+                  <IconButton type="submit" disabled={submitting} edge="end">
+                    {submitting ? <CircularProgress size={24} /> : <AddCircleOutlineIcon />}
+                  </IconButton>
+                </InputAdornment>
+              ),
+            }}
           />
-          <Button type="submit" variant="contained" color="primary" fullWidth disabled={submitting} startIcon={submitting ? <CircularProgress size={20} color="inherit" /> : <AddCircleOutlineIcon />} sx={{ mt: 1, height: 50 }}>
-            {submitting ? 'Guardando...' : 'Añadir a la Lista'}
-          </Button>
         </Box>
       </Paper>
 
@@ -294,8 +413,24 @@ const GroceryList: React.FC = () => {
       {/* Pending Items */}
       {!loading && (
         <Paper elevation={3} sx={{ p: 3, mb: 3, bgcolor: 'background.paper' }}>
-          <Typography variant="h6" gutterBottom color="text.primary">Artículos Pendientes</Typography>
-          {pendingItems.length === 0 && <Typography variant="body2" color="text.secondary" textAlign="center" sx={{ mt: 2 }}>¡No hay nada pendiente!</Typography>}
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Typography variant="body1" gutterBottom color="text.primary">Artículos Pendientes</Typography>
+            <IconButton onClick={() => setSortBy(sortBy === 'alpha' ? 'time' : 'alpha')} color={sortBy === 'alpha' ? 'primary' : 'default'}>
+              <SortByAlphaIcon />
+            </IconButton>
+          </Box>
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, my: 2 }}>
+            {allCategories.map(category => (
+              <Chip
+                key={category}
+                label={category}
+                onClick={() => setCategoryFilter(category)}
+                variant={categoryFilter === category ? 'filled' : 'outlined'}
+                size="small"
+              />
+            ))}
+          </Box>
+          {Object.keys(groupedPendingItems).length === 0 && <Typography variant="caption" color="text.secondary" textAlign="center" sx={{ mt: 2 }}>¡No hay nada pendiente para esta categoría!</Typography>}
           <List sx={{
             width: '100%',
             maxHeight: '400px', // Limit height for scrollbar
@@ -325,8 +460,13 @@ const GroceryList: React.FC = () => {
                       <ListItem divider sx={{ bgcolor: 'rgba(255, 255, 255, 0.05)', borderRadius: 1, mb: 1 }}>
                         <FormControlLabel
                           control={<Checkbox checked={item.is_bought} onChange={() => handleToggleBought(item)} name={`item-${item.id}`} color="primary"/>}
-                          label={<ListItemText primary={<Typography component="span" variant="body1" sx={{ fontWeight: 'bold' }}>{item.name}</Typography>} secondary={`${item.quantity} ${item.unit || ''}`}/>}
+                          label={<ListItemText primary={<Typography component="span" variant="body2" sx={{ fontWeight: 'bold' }}>{item.name}</Typography>} secondary={<Typography component="span" variant="caption">{`${item.quantity} ${item.unit || ''}`}</Typography>}/>}
                         />
+                        <ListItemSecondaryAction>
+                          <IconButton edge="end" aria-label="edit" onClick={() => handleOpenEditModal(item)}>
+                            <EditIcon />
+                          </IconButton>
+                        </ListItemSecondaryAction>
                       </ListItem>
                     </motion.div>
                   ))}
@@ -340,7 +480,7 @@ const GroceryList: React.FC = () => {
       {/* Bought Items */}
       {!loading && boughtItems.length > 0 && (
         <Paper elevation={3} sx={{ p: 3, mb: 3, bgcolor: 'background.paper' }}>
-          <Typography variant="h6" gutterBottom color="text.primary" onClick={() => setShowBoughtItems(!showBoughtItems)} sx={{ cursor: 'pointer' }}>
+          <Typography variant="body1" gutterBottom color="text.primary" onClick={() => setShowBoughtItems(!showBoughtItems)} sx={{ cursor: 'pointer' }}>
             Artículos Comprados
           </Typography>
           {showBoughtItems && (
@@ -373,9 +513,12 @@ const GroceryList: React.FC = () => {
                         <ListItem divider sx={{ bgcolor: 'rgba(255, 255, 255, 0.05)', borderRadius: 1, mb: 1, textDecoration: 'line-through', color: 'text.secondary' }}>
                           <FormControlLabel
                             control={<Checkbox checked={item.is_bought} onChange={() => handleToggleBought(item)} name={`item-${item.id}`} color="primary"/>}
-                            label={<ListItemText primary={<Typography component="span" variant="body1">{item.name}</Typography>} secondary={`${item.quantity} ${item.unit || ''}`}/>}
+                            label={<ListItemText primary={<Typography component="span" variant="body2">{item.name}</Typography>} secondary={<Typography component="span" variant="caption">{`${item.quantity} ${item.unit || ''}`}</Typography>}/>}
                           />
                           <ListItemSecondaryAction>
+                            <IconButton edge="end" aria-label="edit" sx={{ mr: 1 }} onClick={() => handleOpenEditModal(item)}>
+                              <EditIcon />
+                            </IconButton>
                             <IconButton edge="end" aria-label="archive" onClick={() => handleArchiveItem(item.id)}>
                               <ArchiveIcon />
                             </IconButton>
@@ -399,8 +542,8 @@ const GroceryList: React.FC = () => {
           </Button>
           {showArchived && (
             <Paper elevation={3} sx={{ p: 3, mt: 2, bgcolor: 'background.paper' }}>
-              <Typography variant="h6" gutterBottom color="text.primary">Archivados</Typography>
-              {uniqueArchivedItems.length === 0 && <Typography variant="body2" color="text.secondary" textAlign="center" sx={{ mt: 2 }}>No hay artículos archivados.</Typography>}
+              <Typography variant="body1" gutterBottom color="text.primary">Archivados</Typography>
+              {uniqueArchivedItems.length === 0 && <Typography variant="caption" color="text.secondary" textAlign="center" sx={{ mt: 2 }}>No hay artículos archivados.</Typography>}
               <List sx={{
             width: '100%',
             maxHeight: '400px', // Limit height for scrollbar
@@ -428,7 +571,7 @@ const GroceryList: React.FC = () => {
                       {groupedArchivedItems[category].map((item) => (
                         <motion.div key={item.id} layout exit={{ opacity: 0 }} transition={{ duration: 0.4 }}>
                           <ListItem divider sx={{ borderRadius: 1, mb: 1 }}>
-                            <ListItemText primary={<Typography component="span" variant="body1" sx={{ color: 'text.disabled' }}>{item.name}</Typography>} />
+                            <ListItemText primary={<Typography component="span" variant="body2" sx={{ color: 'text.disabled' }}>{item.name}</Typography>} />
                             <ListItemSecondaryAction>
                               <IconButton edge="end" aria-label="unarchive" onClick={() => handleUnarchiveItem(item.name)}>
                                 <UnarchiveIcon color="secondary" />
@@ -453,6 +596,46 @@ const GroceryList: React.FC = () => {
         message="Artículo completado"
         action={<Button color="secondary" size="small" onClick={handleUndo}>DESHACER</Button>}
       />
+
+      {/* Edit Item Modal */}
+      <Dialog open={editModalOpen} onClose={handleCloseEditModal} fullWidth maxWidth="sm">
+        <DialogTitle>Editar Artículo</DialogTitle>
+        <DialogContent>
+          <TextField
+            autoFocus
+            margin="dense"
+            label="Nombre del Artículo"
+            type="text"
+            fullWidth
+            variant="standard"
+            value={editedItemName}
+            onChange={(e) => setEditedItemName(e.target.value)}
+            sx={{ mt: 2 }}
+          />
+          <FormControl fullWidth sx={{ mt: 3 }}>
+            <InputLabel>Categoría</InputLabel>
+            <Select
+              value={editedItemCategory}
+              label="Categoría"
+              onChange={(e) => setEditedItemCategory(e.target.value)}
+            >
+              {Object.keys(categoryKeywords).map(cat => (
+                <MenuItem key={cat} value={cat}>{cat}</MenuItem>
+              ))}
+              <MenuItem value="Otros">Otros</MenuItem>
+            </Select>
+          </FormControl>
+        </DialogContent>
+        <DialogActions sx={{ justifyContent: 'space-between', px: 3, pb: 2 }}>
+          <Button onClick={handleDeleteItem} color="error">Eliminar</Button>
+          <Box>
+            <Button onClick={handleCloseEditModal}>Cancelar</Button>
+            <Button onClick={handleUpdateItem} color="primary" disabled={submitting}>
+              {submitting ? <CircularProgress size={24} /> : 'Guardar'}
+            </Button>
+          </Box>
+        </DialogActions>
+      </Dialog>
     </motion.div>
   );
 };

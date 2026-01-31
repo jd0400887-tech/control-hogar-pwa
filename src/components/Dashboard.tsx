@@ -188,8 +188,8 @@ const Dashboard: React.FC = () => {
           <Box sx={{ mb: 3 }}>
             <Card elevation={3} sx={{ bgcolor: 'background.paper' }}>
               <CardContent sx={{ textAlign: 'center' }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 1 }}><AccountBalanceWalletIcon color="primary" sx={{ mr: 1, fontSize: 28 }} /><Typography variant="h6" color="text.primary">Total Ahorrado</Typography></Box>
-                <Typography variant="h3" component="p" sx={{ fontWeight: 'bold', color: 'text.primary', my: 1 }}><motion.span>{formattedTotal}</motion.span></Typography>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 1 }}><AccountBalanceWalletIcon color="primary" sx={{ mr: 1, fontSize: 28 }} /><Typography variant="body1" color="text.primary">Total Ahorrado</Typography></Box>
+                <Typography variant="h4" component="p" sx={{ fontWeight: 'bold', color: 'text.primary', my: 1 }}><motion.span>{formattedTotal}</motion.span></Typography>
                 {chipData.length > 0 && (<Chip label={chipData[chipIndex]} variant="outlined" size="small" sx={{ mt: 1, transition: 'all 0.3s ease-in-out' }}/>)}
               </CardContent>
             </Card>
@@ -199,20 +199,20 @@ const Dashboard: React.FC = () => {
           <Box sx={{ mb: 3 }}>
             <Card elevation={3} sx={{ bgcolor: 'background.paper' }}>
                 <CardContent>
-                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}><ShowChartIcon color="primary" sx={{ mr: 1, fontSize: 30 }} /><Typography variant="h5" color="text.primary">Estadísticas Clave</Typography></Box>
+                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}><ShowChartIcon color="primary" sx={{ mr: 1, fontSize: 30 }} /><Typography variant="h6" color="text.primary">Estadísticas Clave</Typography></Box>
                     <Box sx={{ display: 'flex', mt: 2 }}>
                         {/* Left Column */}
                         <Box sx={{ flex: 1, pr: 1 }}>
-                            <Box sx={{ display: 'flex', alignItems: 'center', mb: 1.5 }}><SavingsIcon sx={{ mr: 1.5, color: 'text.secondary' }} /><Box><Typography variant="body1" color="text.secondary">Ahorro Neto este Mes:</Typography><Typography variant="h6" sx={{ fontWeight: 'bold', color: netMonthlySavings >= 0 ? 'success.main' : 'error.main' }}>COP {netMonthlySavings.toLocaleString('es-CO')}</Typography></Box></Box>
-                            <Box sx={{ display: 'flex', alignItems: 'center', mb: 1.5 }}><TrendingUpIcon sx={{ mr: 1.5, color: 'text.secondary' }} /><Box><Typography variant="body1" color="text.secondary">Ahorro Promedio Mensual:</Typography><Typography variant="h6" sx={{ fontWeight: 'bold', color: 'primary.main' }}>COP {Math.round(avgMonthlySavings).toLocaleString('es-CO')}</Typography></Box></Box>
-                            <Box sx={{ display: 'flex', alignItems: 'center' }}><EmojiEventsIcon sx={{ mr: 1.5, color: 'text.secondary' }} /><Box><Typography variant="body1" color="text.secondary">Depósito Más Grande:</Typography><Typography variant="h6" sx={{ fontWeight: 'bold', color: 'secondary.main' }}>COP {largestDeposit.toLocaleString('es-CO')}</Typography></Box></Box>
+                            <Box sx={{ display: 'flex', alignItems: 'center', mb: 1.5 }}><SavingsIcon sx={{ mr: 1.5, color: 'text.secondary' }} /><Box><Typography variant="body2" color="text.secondary">Ahorro Neto este Mes:</Typography><Typography variant="body1" sx={{ fontWeight: 'bold', color: netMonthlySavings >= 0 ? 'success.main' : 'error.main' }}>COP {netMonthlySavings.toLocaleString('es-CO')}</Typography></Box></Box>
+                            <Box sx={{ display: 'flex', alignItems: 'center', mb: 1.5 }}><TrendingUpIcon sx={{ mr: 1.5, color: 'text.secondary' }} /><Box><Typography variant="body2" color="text.secondary">Ahorro Promedio Mensual:</Typography><Typography variant="body1" sx={{ fontWeight: 'bold', color: 'primary.main' }}>COP {Math.round(avgMonthlySavings).toLocaleString('es-CO')}</Typography></Box></Box>
+                            <Box sx={{ display: 'flex', alignItems: 'center' }}><EmojiEventsIcon sx={{ mr: 1.5, color: 'text.secondary' }} /><Box><Typography variant="body2" color="text.secondary">Depósito Más Grande:</Typography><Typography variant="body1" sx={{ fontWeight: 'bold', color: 'secondary.main' }}>COP {largestDeposit.toLocaleString('es-CO')}</Typography></Box></Box>
                         </Box>
                         {/* Right Column */}
                         <Divider orientation="vertical" flexItem sx={{ mx: 2 }} />
                         <Box sx={{ flex: 1, pl: 1 }}>
-                            <Typography variant="h6" color="text.primary" gutterBottom>Ahorro Individual</Typography>
-                            <Box sx={{ display: 'flex', alignItems: 'center', mb: 1.5 }}><Typography variant="body1" color="text.secondary" sx={{ width: '80px' }}>David:</Typography><Typography variant="h6" sx={{ fontWeight: 'bold', color: 'info.main' }}>COP {davidTotalSavings.toLocaleString('es-CO')}</Typography></Box>
-                            <Box sx={{ display: 'flex', alignItems: 'center', mb: 1.5 }}><Typography variant="body1" color="text.secondary" sx={{ width: '80px' }}>Andrea:</Typography><Typography variant="h6" sx={{ fontWeight: 'bold', color: 'info.main' }}>COP {andreaTotalSavings.toLocaleString('es-CO')}</Typography></Box>
+                            <Typography variant="body1" color="text.primary" gutterBottom>Ahorro Individual</Typography>
+                            <Box sx={{ display: 'flex', alignItems: 'center', mb: 1.5 }}><Typography variant="body2" color="text.secondary" sx={{ width: '80px' }}>David:</Typography><Typography variant="body1" sx={{ fontWeight: 'bold', color: 'info.main' }}>COP {davidTotalSavings.toLocaleString('es-CO')}</Typography></Box>
+                            <Box sx={{ display: 'flex', alignItems: 'center', mb: 1.5 }}><Typography variant="body2" color="text.secondary" sx={{ width: '80px' }}>Andrea:</Typography><Typography variant="body1" sx={{ fontWeight: 'bold', color: 'info.main' }}>COP {andreaTotalSavings.toLocaleString('es-CO')}</Typography></Box>
                         </Box>
                     </Box>
                 </CardContent>
@@ -225,7 +225,7 @@ const Dashboard: React.FC = () => {
               <CardContent>
                 <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
                   <ShoppingCartIcon color="primary" sx={{ mr: 1, fontSize: 30 }} />
-                  <Typography variant="h5" color="text.primary">Resumen de Mercado</Typography>
+                  <Typography variant="h6" color="text.primary">Resumen de Mercado</Typography>
                 </Box>
                 <Box sx={{ display: 'flex', alignItems: 'center', mt: 2 }}>
                   {/* Left Side: Progress */}
@@ -234,22 +234,22 @@ const Dashboard: React.FC = () => {
                       <CircularProgress variant="determinate" value={100} sx={{ color: (theme) => theme.palette.grey[200] }} size={80} thickness={4} />
                       <CircularProgress variant="determinate" value={shoppingProgress} sx={{ position: 'absolute', left: 0, color: 'primary.main' }} size={80} thickness={4} />
                       <Box sx={{ top: 0, left: 0, bottom: 0, right: 0, position: 'absolute', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <Typography variant="h6" component="div" color="text.secondary">{`${Math.round(shoppingProgress)}%`}</Typography>
+                        <Typography variant="body1" component="div" color="text.secondary">{`${Math.round(shoppingProgress)}%`}</Typography>
                       </Box>
                     </Box>
-                    <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>{`${boughtItemsCount} / ${totalItemsCount} comprados`}</Typography>
+                    <Typography variant="caption" color="text.secondary" sx={{ mt: 1 }}>{`${boughtItemsCount} / ${totalItemsCount} comprados`}</Typography>
                   </Box>
                   {/* Right Side: Suggestions */}
                   <Box sx={{ width: '60%', pl: 2 }}>
                     <Box sx={{display: 'flex', alignItems: 'center', mb: 1}}>
                       <LightbulbIcon sx={{ color: 'warning.main', mr: 0.5, fontSize: 18 }}/>
-                      <Typography variant="body1" sx={{ fontWeight: 'bold' }}>Quizás necesites...</Typography>
+                      <Typography variant="body2" sx={{ fontWeight: 'bold' }}>Quizás necesites...</Typography>
                     </Box>
                     {suggestedItems.length > 0 ? (
                       <List dense disablePadding>
                         {suggestedItems.map(item => (
                           <ListItem key={item} disableGutters secondaryAction={<IconButton size="small" onClick={() => handleQuickAddItem(item)}><AddIcon /></IconButton>}>
-                            <ListItemText primary={item} />
+                            <ListItemText primary={<Typography component="span" variant="body2">{item}</Typography>} secondary={<Typography component="span" variant="caption" color="text.secondary">Añadir</Typography>} />
                           </ListItem>
                         ))}
                       </List>

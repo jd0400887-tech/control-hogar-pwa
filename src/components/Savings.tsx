@@ -143,12 +143,12 @@ const Savings: React.FC = () => {
       transition={{ duration: 0.5 }}
       style={{ maxWidth: '600px', margin: 'auto', padding: '16px' }}
     >
-      <Typography variant="h4" component="h1" gutterBottom color="primary" textAlign="center">
+      <Typography variant="h5" component="h1" gutterBottom color="primary" textAlign="center">
         Control de Ahorros
       </Typography>
 
       <Paper elevation={3} sx={{ p: 3, mb: 3, bgcolor: 'background.paper' }}>
-        <Typography variant="h5" color="secondary" gutterBottom>
+        <Typography variant="h6" color="secondary" gutterBottom>
           Ahorro Total: <Box component="span" sx={{ fontWeight: 'bold' }}>COP {totalSavings.toLocaleString('es-CO')}</Box>
         </Typography>
       </Paper>
@@ -156,7 +156,7 @@ const Savings: React.FC = () => {
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
       <Paper elevation={3} sx={{ p: 3, mb: 3, bgcolor: 'background.paper' }}>
-        <Typography variant="h6" gutterBottom color="text.primary">Añadir Nuevo Movimiento</Typography>
+        <Typography variant="body1" gutterBottom color="text.primary">Añadir Nuevo Movimiento</Typography>
         <Box component="form" onSubmit={handleAddMovement} sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
           <TextField
             label="Monto (COP)"
@@ -204,12 +204,12 @@ const Savings: React.FC = () => {
       </Paper>
 
       <Paper elevation={3} sx={{ p: 3, bgcolor: 'background.paper' }}>
-        <Typography variant="h6" gutterBottom color="text.primary" onClick={() => setShowHistory(!showHistory)} sx={{ cursor: 'pointer' }}>
+        <Typography variant="body1" gutterBottom color="text.primary" onClick={() => setShowHistory(!showHistory)} sx={{ cursor: 'pointer' }}>
           Historial de Movimientos
         </Typography>
         {loading && <Box sx={{ display: 'flex', justifyContent: 'center', my: 2 }}><CircularProgress color="primary" /></Box>}
         {!loading && movements.length === 0 && (
-          <Typography variant="body2" color="text.secondary" textAlign="center" sx={{ mt: 2 }}>
+          <Typography variant="caption" color="text.secondary" textAlign="center" sx={{ mt: 2 }}>
             No hay movimientos registrados aún.
           </Typography>
         )}
@@ -247,12 +247,12 @@ const Savings: React.FC = () => {
                 <ListItemText
                   primary={
                     <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <Typography component="span" variant="body1" sx={{ fontWeight: 'bold' }}>
+                      <Typography component="span" variant="body2" sx={{ fontWeight: 'bold' }}>
                         {movement.type === 'deposit' ? 'Depósito:' : 'Retiro:'}
                       </Typography>
                       <Typography
                         component="span"
-                        variant="body1"
+                        variant="body2"
                         sx={{
                           fontWeight: 'bold',
                           color: movement.type === 'deposit' ? 'primary.main' : 'error.main',
@@ -264,7 +264,7 @@ const Savings: React.FC = () => {
                   }
                   secondary={
                     <>
-                      <Typography component="span" variant="body2" color="text.secondary" display="block">
+                      <Typography component="span" variant="caption" color="text.secondary" display="block">
                         {movement.description || 'Sin descripción'}
                       </Typography>
                       <Typography component="span" variant="caption" color="text.disabled" display="block">
