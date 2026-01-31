@@ -180,7 +180,7 @@ const Dashboard: React.FC = () => {
   }, [chipData.length]);
 
   return (
-    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} style={{ maxWidth: '600px', margin: 'auto', padding: '16px' }}>
+    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} style={{ width: '100%' }}>
       <Header />
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
       {loading ? <Box sx={{ display: 'flex', justifyContent: 'center', my: 4 }}><CircularProgress color="primary" /></Box> : (

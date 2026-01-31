@@ -142,12 +142,12 @@ const Savings: React.FC = () => {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
-      style={{ maxWidth: '600px', margin: 'auto', padding: '16px' }}
+      style={{ width: '100%' }}
     >
       <Header />
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
-      <Paper elevation={3} sx={{ p: 3, mb: 3, bgcolor: 'background.paper' }}>
+      <Paper elevation={3} sx={{ px: 1, py: 2, mb: 3, bgcolor: 'background.paper' }}>
         <Typography variant="body1" gutterBottom color="text.primary">Añadir Nuevo Movimiento</Typography>
         <Box component="form" onSubmit={handleAddMovement} sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
           <TextField
@@ -195,7 +195,7 @@ const Savings: React.FC = () => {
         </Box>
       </Paper>
 
-      <Paper elevation={3} sx={{ p: 3, bgcolor: 'background.paper' }}>
+      <Paper elevation={3} sx={{ px: 1, py: 2, bgcolor: 'background.paper' }}>
         <Typography variant="body1" gutterBottom color="text.primary" onClick={() => setShowHistory(!showHistory)} sx={{ cursor: 'pointer' }}>
           Historial de Movimientos
         </Typography>
