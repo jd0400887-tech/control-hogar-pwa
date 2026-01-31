@@ -35,6 +35,7 @@ import ArchiveIcon from '@mui/icons-material/Archive';
 import UnarchiveIcon from '@mui/icons-material/Unarchive';
 import SortByAlphaIcon from '@mui/icons-material/SortByAlpha';
 import EditIcon from '@mui/icons-material/Edit';
+import Header from './Header';
 
 // --- (Types and Helper Functions) ---
 interface GroceryItem {
@@ -375,10 +376,7 @@ const GroceryList: React.FC = () => {
       transition={{ duration: 0.5 }}
       style={{ maxWidth: '600px', margin: 'auto', padding: '16px' }}
     >
-      <Typography variant="h4" component="h1" gutterBottom color="primary" textAlign="center">
-        Lista de Mercado
-      </Typography>
-
+      <Header />
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
       {/* Add Item Form */}

@@ -12,6 +12,7 @@ import SavingsIcon from '@mui/icons-material/Savings';
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
 import AddIcon from '@mui/icons-material/Add';
 import LightbulbIcon from '@mui/icons-material/Lightbulb';
+import Header from './Header';
 
 // --- (Helper Functions) ---
 const getWeek = (date: Date): number => {
@@ -180,7 +181,7 @@ const Dashboard: React.FC = () => {
 
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} style={{ maxWidth: '600px', margin: 'auto', padding: '16px' }}>
-      <Typography variant="h4" component="h1" gutterBottom color="primary" textAlign="center">Panel de Control</Typography>
+      <Header />
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
       {loading ? <Box sx={{ display: 'flex', justifyContent: 'center', my: 4 }}><CircularProgress color="primary" /></Box> : (
         <>

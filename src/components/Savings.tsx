@@ -7,6 +7,7 @@ import { motion } from 'framer-motion';
 import { supabase } from '../supabaseClient';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
+import Header from './Header';
 
 // Define type for a savings movement
 interface SavingMovement {
@@ -143,16 +144,7 @@ const Savings: React.FC = () => {
       transition={{ duration: 0.5 }}
       style={{ maxWidth: '600px', margin: 'auto', padding: '16px' }}
     >
-      <Typography variant="h5" component="h1" gutterBottom color="primary" textAlign="center">
-        Control de Ahorros
-      </Typography>
-
-      <Paper elevation={3} sx={{ p: 3, mb: 3, bgcolor: 'background.paper' }}>
-        <Typography variant="h6" color="secondary" gutterBottom>
-          Ahorro Total: <Box component="span" sx={{ fontWeight: 'bold' }}>COP {totalSavings.toLocaleString('es-CO')}</Box>
-        </Typography>
-      </Paper>
-
+      <Header />
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
       <Paper elevation={3} sx={{ p: 3, mb: 3, bgcolor: 'background.paper' }}>
