@@ -65,7 +65,7 @@ const Header: React.FC = () => {
       borderRadius: 2,
       mb: 3,
     }}>
-      <Typography variant="h6" color="primary">
+      <Typography variant="h6" color="primary" sx={{ textShadow: '0 0 8px #00FFFF, 0 0 12px #00FFFF, 0 0 16px #00FFFF' }}>
         {greeting}, {userProfile?.first_name || 'Usuario'}
       </Typography>
       <Button

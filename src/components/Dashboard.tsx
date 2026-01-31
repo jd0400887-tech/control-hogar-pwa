@@ -12,6 +12,8 @@ import SavingsIcon from '@mui/icons-material/Savings';
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
 import AddIcon from '@mui/icons-material/Add';
 import LightbulbIcon from '@mui/icons-material/Lightbulb';
+import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward'; // New Import
+import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward'; // New Import
 import Header from './Header';
 
 // --- (Helper Functions) ---
@@ -33,6 +35,8 @@ const Dashboard: React.FC = () => {
   const [chipIndex, setChipIndex] = useState(0);
   const [netMonthlySavings, setNetMonthlySavings] = useState(0);
   const [avgMonthlySavings, setAvgMonthlySavings] = useState(0);
+  const [netPreviousMonth, setNetPreviousMonth] = useState(0); // New state for previous month's net savings
+  const [monthlyChange, setMonthlyChange] = useState(0); // New state for monthly change
   const [largestDeposit, setLargestDeposit] = useState(0);
   const [shoppingProgress, setShoppingProgress] = useState(0);
   const [boughtItemsCount, setBoughtItemsCount] = useState(0);
@@ -100,8 +104,22 @@ const Dashboard: React.FC = () => {
       const monthlyMovements = movements.filter(m => new Date(m.created_at) >= startOfMonth);
       const netMonth = monthlyMovements.reduce((sum, m) => sum + (m.type === 'deposit' ? m.amount : -m.amount), 0);
       setNetMonthlySavings(netMonth);
-      const largestDep = movements.filter(m => m.type === 'deposit').reduce((max, m) => m.amount > max ? m.amount : max, 0);
-      setLargestDeposit(largestDep);
+
+      // Calculate Net Savings for Previous Month
+      const startOfPreviousMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const endOfPreviousMonth = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+
+      const previousMonthMovements = movements.filter(m => {
+          const movementDate = new Date(m.created_at);
+          return movementDate >= startOfPreviousMonth && movementDate <= endOfPreviousMonth;
+      });
+      const netPreviousMonthCalc = previousMonthMovements.reduce((sum, m) => sum + (m.type === 'deposit' ? m.amount : -m.amount), 0);
+      setNetPreviousMonth(netPreviousMonthCalc);
+
+      // Calculate Monthly Change
+      const monthlyChangeCalc = netMonth - netPreviousMonthCalc;
+      setMonthlyChange(monthlyChangeCalc);
+
       const savingsByMonth = movements.reduce((acc, m) => {
         const monthKey = `${new Date(m.created_at).getFullYear()}-${new Date(m.created_at).getMonth()}`;
         if (!acc[monthKey]) acc[monthKey] = 0;
@@ -111,6 +129,18 @@ const Dashboard: React.FC = () => {
       const monthlyTotals = Object.values(savingsByMonth);
       const avgMonth = monthlyTotals.length > 0 ? monthlyTotals.reduce((sum, v) => sum + v, 0) / monthlyTotals.length : 0;
       setAvgMonthlySavings(avgMonth);
+
+      // Re-introduce largest deposit calculation
+      const largestDep = movements.filter(m => m.type === 'deposit').reduce((max, m) => m.amount > max ? m.amount : max, 0);
+      // Calculate largest withdrawal
+      const largestWdl = movements.filter(m => m.type === 'withdrawal').reduce((max, m) => m.amount > max ? m.amount : max, 0);
+
+      // Populate chipData
+      const newChipData: React.ReactNode[] = [];
+      if (largestDep > 0) newChipData.push(`Mayor Depósito: COP ${largestDep.toLocaleString('es-CO')}`);
+      if (largestWdl > 0) newChipData.push(`Mayor Retiro: COP ${largestWdl.toLocaleString('es-CO')}`);
+      if (netPreviousMonthCalc !== 0) newChipData.push(`Ahorro Neto Mes Pasado: COP ${netPreviousMonthCalc.toLocaleString('es-CO')}`);
+      setChipData(newChipData);
       
       // Grocery Card - Progress (using only ACTIVE items)
       const boughtItems = activeGroceryItems.filter(item => item.is_bought).length;
@@ -187,10 +217,10 @@ const Dashboard: React.FC = () => {
         <>
           {/* Savings Summary */}
           <Box sx={{ mb: 3 }}>
-            <Card elevation={3} sx={{ bgcolor: 'background.paper' }}>
+            <Card elevation={6} sx={{ bgcolor: 'background.paper', boxShadow: '0px 0px 15px rgba(0, 255, 255, 0.5)' }}>
               <CardContent sx={{ textAlign: 'center' }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 1 }}><AccountBalanceWalletIcon color="primary" sx={{ mr: 1, fontSize: 28 }} /><Typography variant="body1" color="text.primary">Total Ahorrado</Typography></Box>
-                <Typography variant="h4" component="p" sx={{ fontWeight: 'bold', color: 'text.primary', my: 1 }}><motion.span>{formattedTotal}</motion.span></Typography>
+                <Typography variant="h3" component="p" sx={{ fontWeight: 'bold', color: 'primary.main', my: 1 }}><motion.span>{formattedTotal}</motion.span></Typography>
                 {chipData.length > 0 && (<Chip label={chipData[chipIndex]} variant="outlined" size="small" sx={{ mt: 1, transition: 'all 0.3s ease-in-out' }}/>)}
               </CardContent>
             </Card>
@@ -206,7 +236,18 @@ const Dashboard: React.FC = () => {
                         <Box sx={{ flex: 1, pr: 1 }}>
                             <Box sx={{ display: 'flex', alignItems: 'center', mb: 1.5 }}><SavingsIcon sx={{ mr: 1.5, color: 'text.secondary' }} /><Box><Typography variant="body2" color="text.secondary">Ahorro Neto este Mes:</Typography><Typography variant="body1" sx={{ fontWeight: 'bold', color: netMonthlySavings >= 0 ? 'success.main' : 'error.main' }}>COP {netMonthlySavings.toLocaleString('es-CO')}</Typography></Box></Box>
                             <Box sx={{ display: 'flex', alignItems: 'center', mb: 1.5 }}><TrendingUpIcon sx={{ mr: 1.5, color: 'text.secondary' }} /><Box><Typography variant="body2" color="text.secondary">Ahorro Promedio Mensual:</Typography><Typography variant="body1" sx={{ fontWeight: 'bold', color: 'primary.main' }}>COP {Math.round(avgMonthlySavings).toLocaleString('es-CO')}</Typography></Box></Box>
-                            <Box sx={{ display: 'flex', alignItems: 'center' }}><EmojiEventsIcon sx={{ mr: 1.5, color: 'text.secondary' }} /><Box><Typography variant="body2" color="text.secondary">Depósito Más Grande:</Typography><Typography variant="body1" sx={{ fontWeight: 'bold', color: 'secondary.main' }}>COP {largestDeposit.toLocaleString('es-CO')}</Typography></Box></Box>
+                            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                {monthlyChange >= 0 ? 
+                                    <ArrowUpwardIcon sx={{ mr: 1.5, color: 'success.main' }} /> : 
+                                    <ArrowDownwardIcon sx={{ mr: 1.5, color: 'error.main' }} />
+                                }
+                                <Box>
+                                    <Typography variant="body2" color="text.secondary">Var. vs Mes Anterior:</Typography>
+                                    <Typography variant="body1" sx={{ fontWeight: 'bold', color: monthlyChange >= 0 ? 'success.main' : 'error.main' }}>
+                                        COP {monthlyChange.toLocaleString('es-CO')}
+                                    </Typography>
+                                </Box>
+                            </Box>
                         </Box>
                         {/* Right Column */}
                         <Divider orientation="vertical" flexItem sx={{ mx: 2 }} />

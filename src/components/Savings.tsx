@@ -1,13 +1,16 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  Box, Typography, Button, TextField, MenuItem, Select,
+  Box, Typography, Button, TextField, MenuItem, Select, Card, CardContent,
   FormControl, InputLabel, CircularProgress, List, ListItem, ListItemText, ListItemSecondaryAction, IconButton, Alert, Paper
 } from '@mui/material';
 import { motion } from 'framer-motion';
 import { supabase } from '../supabaseClient';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
+import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet'; // New Import
 import Header from './Header';
+import useWindowSize from 'react-use/lib/useWindowSize'; // New Import
+import Confetti from 'react-confetti'; // New Import
 
 // Define type for a savings movement
 interface SavingMovement {
@@ -29,6 +32,9 @@ const Savings: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [totalSavings, setTotalSavings] = useState(0);
   const [showHistory, setShowHistory] = useState(true);
+  const [showConfetti, setShowConfetti] = useState(false); // New state for confetti
+  const [showSuccessMessage, setShowSuccessMessage] = useState(false); // New state for success message
+  const { width, height } = useWindowSize(); // For confetti size
 
   const fetchMovements = useCallback(async () => {
     setLoading(true);
@@ -104,6 +110,17 @@ const Savings: React.FC = () => {
 
       setNewAmount('');
       setNewDescription('');
+
+      // Trigger confetti if it was a deposit
+      if (newType === 'deposit') {
+        setShowConfetti(true);
+        setShowSuccessMessage(true);
+        setTimeout(() => {
+          setShowConfetti(false);
+          setShowSuccessMessage(false);
+        }, 3000); // Confetti and message for 3 seconds
+      }
+      
       // fetchMovements will be called by the Realtime subscription
       // or can be called directly here if Realtime is not active/desired for immediate feedback
     } catch (err: any) {
@@ -147,6 +164,16 @@ const Savings: React.FC = () => {
       <Header />
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
+      {/* Total Ahorrado Card (Individual) */}
+      <Box sx={{ mb: 3 }}>
+        <Card elevation={6} sx={{ bgcolor: 'background.paper', boxShadow: '0px 0px 15px rgba(0, 255, 255, 0.5)' }}>
+          <CardContent sx={{ textAlign: 'center' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 1 }}><AccountBalanceWalletIcon color="primary" sx={{ mr: 1, fontSize: 28 }} /><Typography variant="body1" color="text.primary">Total Ahorrado</Typography></Box>
+            <Typography variant="h3" component="p" sx={{ fontWeight: 'bold', color: 'primary.main', my: 1 }}>COP {totalSavings.toLocaleString('es-CO')}</Typography>
+          </CardContent>
+        </Card>
+      </Box>
+      
       <Paper elevation={3} sx={{ px: 1, py: 2, mb: 3, bgcolor: 'background.paper' }}>
         <Typography variant="body1" gutterBottom color="text.primary">Añadir Nuevo Movimiento</Typography>
         <Box component="form" onSubmit={handleAddMovement} sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -217,13 +244,13 @@ const Savings: React.FC = () => {
               background: '#333',
             },
             '&::-webkit-scrollbar-thumb': {
-              backgroundColor: '#00ff00', // Neon Green
+              backgroundColor: '#00FFFF', // Neon Blue
               borderRadius: '10px',
-              boxShadow: '0 0 5px #00ff00, 0 0 10px #00ff00, 0 0 15px #00ff00', // Neon glow
+              boxShadow: '0 0 5px #00FFFF, 0 0 10px #00FFFF, 0 0 15px #00FFFF', // Neon glow
             },
             '&::-webkit-scrollbar-thumb:hover': {
-              backgroundColor: '#00cc00',
-              boxShadow: '0 0 5px #00cc00, 0 0 10px #00cc00, 0 0 15px #00cc00',
+              backgroundColor: '#00CCCC', // Darker Neon Blue on hover
+              boxShadow: '0 0 5px #00CCCC, 0 0 10px #00CCCC, 0 0 15px #00CCCC',
             },
           }}>
             {movements.map((movement) => (
@@ -275,6 +302,42 @@ const Savings: React.FC = () => {
           </List>
         )}
       </Paper>
+      {showConfetti && <Confetti width={width} height={height} recycle={false} numberOfPieces={500} gravity={1.2} wind={0.05} />}
+
+      {showSuccessMessage && (
+        <motion.div
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 1.2 }}
+          transition={{ duration: 0.3 }}
+          style={{
+            position: 'fixed',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            zIndex: 1300, // Above most content
+            pointerEvents: 'none', // Allow clicks to pass through
+          }}
+        >
+          <Box
+            sx={{
+              bgcolor: 'primary.main',
+              color: 'primary.contrastText',
+              borderRadius: '16px',
+              p: 3,
+              boxShadow: '0 0 20px rgba(0, 255, 255, 0.7)',
+              textAlign: 'center',
+            }}
+          >
+            <Typography variant="h4" component="h2" sx={{ fontWeight: 'bold' }}>
+              ¡Éxito!
+            </Typography>
+            <Typography variant="h6">
+              Ahorro Registrado
+            </Typography>
+          </Box>
+        </motion.div>
+      )}
     </motion.div>
   );
 };

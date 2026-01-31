@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   Alert,
   Box,
@@ -112,6 +112,8 @@ const GroceryList: React.FC = () => {
   const [showBoughtItems, setShowBoughtItems] = useState(true);
   const [categoryFilter, setCategoryFilter] = useState<string>('All');
   const [sortBy, setSortBy] = useState<'time' | 'alpha'>('time');
+  const listRef = useRef<HTMLUListElement>(null); // Ref for the scrollable list
+  const [savedScrollTop, setSavedScrollTop] = useState<number | null>(null); // State to save scroll position
 
   // State for Edit Modal
   const [editModalOpen, setEditModalOpen] = useState(false);
@@ -167,6 +169,13 @@ const GroceryList: React.FC = () => {
     return () => { channel.unsubscribe(); };
   }, [fetchItems]);
 
+  useEffect(() => {
+    if (savedScrollTop !== null && listRef.current) {
+      listRef.current.scrollTop = savedScrollTop;
+      setSavedScrollTop(null); // Reset after restoring
+    }
+  }, [items, savedScrollTop]); // Depend on items and savedScrollTop
+
   const handleAddItem = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!smartInput.trim()) {
@@ -209,6 +218,11 @@ const GroceryList: React.FC = () => {
     setError(null);
     
     const isNowBuying = !item.is_bought;
+
+    // Capture scroll position before update
+    if (listRef.current) {
+      setSavedScrollTop(listRef.current.scrollTop);
+    }
 
     if (isNowBuying) {
       setLastCompletedItem(item);
@@ -392,7 +406,7 @@ const GroceryList: React.FC = () => {
       {!loading && (
         <Paper elevation={3} sx={{ px: 1, py: 2, mb: 3, bgcolor: 'background.paper' }}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-            <FormControl sx={{ minWidth: 150 }} size="small">
+            <FormControl sx={{ minWidth: 150, boxShadow: '0px 0px 8px rgba(0, 255, 255, 0.4)', borderRadius: 1 }} size="small">
               <InputLabel>Categoría</InputLabel>
               <Select
                 value={categoryFilter}
@@ -409,7 +423,7 @@ const GroceryList: React.FC = () => {
             </IconButton>
           </Box>
           {Object.keys(groupedPendingItems).length === 0 && <Typography variant="caption" color="text.secondary" textAlign="center" sx={{ mt: 2 }}>¡No hay nada pendiente para esta categoría!</Typography>}
-          <List sx={{
+          <List ref={listRef} sx={{
             width: '100%',
             maxHeight: '400px', // Limit height for scrollbar
             overflow: 'auto',
@@ -420,25 +434,25 @@ const GroceryList: React.FC = () => {
               background: '#333',
             },
             '&::-webkit-scrollbar-thumb': {
-              backgroundColor: '#00ff00', // Neon Green
+              backgroundColor: '#00FFFF', // Neon Blue
               borderRadius: '10px',
-              boxShadow: '0 0 5px #00ff00, 0 0 10px #00ff00, 0 0 15px #00ff00', // Neon glow
+              boxShadow: '0 0 5px #00FFFF, 0 0 10px #00FFFF, 0 0 15px #00FFFF', // Neon glow
             },
             '&::-webkit-scrollbar-thumb:hover': {
-              backgroundColor: '#00cc00',
-              boxShadow: '0 0 5px #00cc00, 0 0 10px #00cc00, 0 0 15px #00cc00',
+              backgroundColor: '#00CCCC', // Darker Neon Blue on hover
+              boxShadow: '0 0 5px #00CCCC, 0 0 10px #00CCCC, 0 0 15px #00CCCC',
             },
           }}>
             <AnimatePresence>
               {Object.keys(groupedPendingItems).sort().map(category => (
                 <React.Fragment key={category}>
-                  <ListSubheader sx={{ bgcolor: 'background.paper' }}>{category}</ListSubheader>
+                  <ListSubheader sx={{ bgcolor: 'rgba(26, 26, 46, 0.8)', color: 'primary.main', textShadow: '0 0 4px #00FFFF', textAlign: 'center', textTransform: 'uppercase' }}>{category}</ListSubheader>
                   {groupedPendingItems[category].map((item) => (
                     <motion.div key={item.id} layout exit={{ opacity: 0, x: -300, height: 0 }} transition={{ duration: 0.4 }}>
-                      <ListItem divider sx={{ bgcolor: 'rgba(255, 255, 255, 0.05)', borderRadius: 1, mb: 1 }}>
+                      <ListItem divider sx={{ bgcolor: 'background.paper', borderRadius: 1, mb: 1, boxShadow: '0 0 8px rgba(0, 255, 255, 0.4)' }}>
                         <FormControlLabel
                           control={<Checkbox checked={item.is_bought} onChange={() => handleToggleBought(item)} name={`item-${item.id}`} color="primary"/>}
-                          label={<ListItemText primary={<Typography component="span" variant="body2" sx={{ fontWeight: 'bold' }}>{item.name}</Typography>} secondary={<Typography component="span" variant="caption">{`${item.quantity} ${item.unit || ''}`}</Typography>}/>}
+                          label={<ListItemText primary={<Typography component="span" variant="body2" sx={{ fontWeight: 'bold' }}>{item.name}</Typography>}/>}
                         />
                         <ListItemSecondaryAction>
                           <IconButton edge="end" aria-label="edit" onClick={() => handleOpenEditModal(item)}>
@@ -473,25 +487,25 @@ const GroceryList: React.FC = () => {
               background: '#333',
             },
             '&::-webkit-scrollbar-thumb': {
-              backgroundColor: '#00ff00', // Neon Green
+              backgroundColor: '#00FFFF', // Neon Blue
               borderRadius: '10px',
-              boxShadow: '0 0 5px #00ff00, 0 0 10px #00ff00, 0 0 15px #00ff00', // Neon glow
+              boxShadow: '0 0 5px #00FFFF, 0 0 10px #00FFFF, 0 0 15px #00FFFF', // Neon glow
             },
             '&::-webkit-scrollbar-thumb:hover': {
-              backgroundColor: '#00cc00',
-              boxShadow: '0 0 5px #00cc00, 0 0 10px #00cc00, 0 0 15px #00cc00',
+              backgroundColor: '#00CCCC', // Darker Neon Blue on hover
+              boxShadow: '0 0 5px #00CCCC, 0 0 10px #00CCCC, 0 0 15px #00CCCC',
             },
           }}>
               <AnimatePresence>
                 {Object.keys(groupedBoughtItems).sort().map(category => (
                   <React.Fragment key={category}>
-                    <ListSubheader sx={{ bgcolor: 'background.paper' }}>{category}</ListSubheader>
+                    <ListSubheader sx={{ bgcolor: 'rgba(26, 26, 46, 0.8)', color: 'primary.main', textShadow: '0 0 4px #00FFFF', textAlign: 'center', textTransform: 'uppercase' }}>{category}</ListSubheader>
                     {groupedBoughtItems[category].map((item) => (
                       <motion.div key={item.id} layout exit={{ opacity: 0, x: 300, height: 0 }} transition={{ duration: 0.4 }}>
-                        <ListItem divider sx={{ bgcolor: 'rgba(255, 255, 255, 0.05)', borderRadius: 1, mb: 1, textDecoration: 'line-through', color: 'text.secondary' }}>
+                        <ListItem divider sx={{ bgcolor: 'background.paper', borderRadius: 1, mb: 1, textDecoration: 'line-through', color: 'text.secondary', boxShadow: '0 0 8px rgba(0, 255, 255, 0.4)' }}>
                           <FormControlLabel
                             control={<Checkbox checked={item.is_bought} onChange={() => handleToggleBought(item)} name={`item-${item.id}`} color="primary"/>}
-                            label={<ListItemText primary={<Typography component="span" variant="body2">{item.name}</Typography>} secondary={<Typography component="span" variant="caption">{`${item.quantity} ${item.unit || ''}`}</Typography>}/>}
+                            label={<ListItemText primary={<Typography component="span" variant="body2">{item.name}</Typography>}/>}
                           />
                           <ListItemSecondaryAction>
                             <IconButton edge="end" aria-label="edit" sx={{ mr: 1 }} onClick={() => handleOpenEditModal(item)}>
@@ -533,22 +547,22 @@ const GroceryList: React.FC = () => {
               background: '#333',
             },
             '&::-webkit-scrollbar-thumb': {
-              backgroundColor: '#00ff00', // Neon Green
+              backgroundColor: '#00FFFF', // Neon Blue
               borderRadius: '10px',
-              boxShadow: '0 0 5px #00ff00, 0 0 10px #00ff00, 0 0 15px #00ff00', // Neon glow
+              boxShadow: '0 0 5px #00FFFF, 0 0 10px #00FFFF, 0 0 15px #00FFFF', // Neon glow
             },
             '&::-webkit-scrollbar-thumb:hover': {
-              backgroundColor: '#00cc00',
-              boxShadow: '0 0 5px #00cc00, 0 0 10px #00cc00, 0 0 15px #00cc00',
+              backgroundColor: '#00CCCC', // Darker Neon Blue on hover
+              boxShadow: '0 0 5px #00CCCC, 0 0 10px #00CCCC, 0 0 15px #00CCCC',
             },
           }}>
                 <AnimatePresence>
                   {Object.keys(groupedArchivedItems).sort().map(category => (
                     <React.Fragment key={category}>
-                      <ListSubheader sx={{ bgcolor: 'background.paper' }}>{category}</ListSubheader>
+                      <ListSubheader sx={{ bgcolor: 'rgba(26, 26, 46, 0.8)', color: 'primary.main', textShadow: '0 0 4px #00FFFF', textAlign: 'center', textTransform: 'uppercase' }}>{category}</ListSubheader>
                       {groupedArchivedItems[category].map((item) => (
                         <motion.div key={item.id} layout exit={{ opacity: 0 }} transition={{ duration: 0.4 }}>
-                          <ListItem divider sx={{ borderRadius: 1, mb: 1 }}>
+                          <ListItem divider sx={{ bgcolor: 'background.paper', borderRadius: 1, mb: 1, boxShadow: '0 0 8px rgba(0, 255, 255, 0.4)' }}>
                             <ListItemText primary={<Typography component="span" variant="body2" sx={{ color: 'text.disabled' }}>{item.name}</Typography>} />
                             <ListItemSecondaryAction>
                               <IconButton edge="end" aria-label="unarchive" onClick={() => handleUnarchiveItem(item.name)}>
