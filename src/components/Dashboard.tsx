@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Box, Typography, CircularProgress, Card, CardContent, Alert, Chip, IconButton, List, ListItem, ListItemText, Divider } from '@mui/material';
+import { Box, Typography, CircularProgress, Card, CardContent, Alert, Chip, IconButton, List, ListItem, ListItemText, Divider, Skeleton } from '@mui/material';
 import { motion, useMotionValue, useTransform, animate } from 'framer-motion';
 import { supabase } from '../supabaseClient';
 import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet';

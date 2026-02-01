@@ -110,6 +110,7 @@ const GroceryList: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [showArchived, setShowArchived] = useState(false);
   const [showBoughtItems, setShowBoughtItems] = useState(true);
+  const [showPendingItems, setShowPendingItems] = useState(true); // New state for pending items visibility
   const [categoryFilter, setCategoryFilter] = useState<string>('All');
   const [sortBy, setSortBy] = useState<'time' | 'alpha'>('time');
   const listRef = useRef<HTMLUListElement>(null); // Ref for the scrollable list
@@ -405,74 +406,81 @@ const GroceryList: React.FC = () => {
       {/* Pending Items */}
       {!loading && (
         <Paper elevation={3} sx={{ px: 1, py: 2, mb: 3, bgcolor: 'background.paper' }}>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-            <FormControl sx={{ minWidth: 150, boxShadow: '0px 0px 8px rgba(0, 255, 255, 0.4)', borderRadius: 1 }} size="small">
-              <InputLabel>Categoría</InputLabel>
-              <Select
-                value={categoryFilter}
-                label="Categoría"
-                onChange={(e) => setCategoryFilter(e.target.value)}
-              >
-                {allCategories.map(category => (
-                  <MenuItem key={category} value={category}>{category}</MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-            <IconButton onClick={() => setSortBy(sortBy === 'alpha' ? 'time' : 'alpha')} color={sortBy === 'alpha' ? 'primary' : 'default'}>
-              <SortByAlphaIcon />
-            </IconButton>
-          </Box>
-          {Object.keys(groupedPendingItems).length === 0 && <Typography variant="caption" color="text.secondary" textAlign="center" sx={{ mt: 2 }}>¡No hay nada pendiente para esta categoría!</Typography>}
-          <List ref={listRef} sx={{
-            width: '100%',
-            maxHeight: '400px', // Limit height for scrollbar
-            overflow: 'auto',
-            '&::-webkit-scrollbar': {
-              width: '8px',
-            },
-            '&::-webkit-scrollbar-track': {
-              background: '#333',
-            },
-            '&::-webkit-scrollbar-thumb': {
-              backgroundColor: '#00FFFF', // Neon Blue
-              borderRadius: '10px',
-              boxShadow: '0 0 5px #00FFFF, 0 0 10px #00FFFF, 0 0 15px #00FFFF', // Neon glow
-            },
-            '&::-webkit-scrollbar-thumb:hover': {
-              backgroundColor: '#00CCCC', // Darker Neon Blue on hover
-              boxShadow: '0 0 5px #00CCCC, 0 0 10px #00CCCC, 0 0 15px #00CCCC',
-            },
-          }}>
-            <AnimatePresence>
-              {Object.keys(groupedPendingItems).sort().map(category => (
-                <React.Fragment key={category}>
-                  <ListSubheader sx={{ bgcolor: 'rgba(26, 26, 46, 0.8)', color: 'primary.main', textShadow: '0 0 4px #00FFFF', textAlign: 'center', textTransform: 'uppercase' }}>{category}</ListSubheader>
-                  {groupedPendingItems[category].map((item) => (
-                    <motion.div key={item.id} layout exit={{ opacity: 0, x: -300, height: 0 }} transition={{ duration: 0.4 }}>
-                      <ListItem divider sx={{ bgcolor: 'background.paper', borderRadius: 1, mb: 1, boxShadow: '0 0 8px rgba(0, 255, 255, 0.4)' }}>
-                        <FormControlLabel
-                          control={<Checkbox checked={item.is_bought} onChange={() => handleToggleBought(item)} name={`item-${item.id}`} color="primary"/>}
-                          label={<ListItemText primary={<Typography component="span" variant="body2" sx={{ fontWeight: 'bold' }}>{item.name}</Typography>}/>}
-                        />
-                        <ListItemSecondaryAction>
-                          <IconButton edge="end" aria-label="edit" onClick={() => handleOpenEditModal(item)}>
-                            <EditIcon />
-                          </IconButton>
-                        </ListItemSecondaryAction>
-                      </ListItem>
-                    </motion.div>
+          <Typography variant="h6" gutterBottom color="secondary.main" onClick={() => setShowPendingItems(!showPendingItems)} sx={{ cursor: 'pointer', textAlign: 'center', fontWeight: 'bold', textShadow: '0 0 5px #8A2BE2' }}>
+            Artículos Por Comprar
+          </Typography>
+          {showPendingItems && ( // Conditionally render the content
+            <>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                <FormControl sx={{ minWidth: 150, boxShadow: '0px 0px 8px rgba(0, 255, 255, 0.4)', borderRadius: 1 }} size="small">
+                  <InputLabel>Categoría</InputLabel>
+                  <Select
+                    value={categoryFilter}
+                    label="Categoría"
+                    onChange={(e) => setCategoryFilter(e.target.value)}
+                  >
+                    {allCategories.map(category => (
+                      <MenuItem key={category} value={category}>{category}</MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+                <IconButton onClick={() => setSortBy(sortBy === 'alpha' ? 'time' : 'alpha')} color={sortBy === 'alpha' ? 'primary' : 'default'}>
+                  <SortByAlphaIcon />
+                </IconButton>
+              </Box>
+              {Object.keys(groupedPendingItems).length === 0 && <Typography variant="caption" color="text.secondary" textAlign="center" sx={{ mt: 2 }}>¡No hay nada pendiente para esta categoría!</Typography>}
+              <List ref={listRef} sx={{
+                width: '100%',
+                maxHeight: '400px', // Limit height for scrollbar
+                overflow: 'auto',
+                '&::-webkit-scrollbar': {
+                  width: '8px',
+                },
+                '&::-webkit-scrollbar-track': {
+                  background: '#333',
+                },
+                '&::-webkit-scrollbar-thumb': {
+                  backgroundColor: '#00FFFF', // Neon Blue
+                  borderRadius: '10px',
+                  boxShadow: '0 0 5px #00FFFF, 0 0 10px #00FFFF, 0 0 15px #00FFFF', // Neon glow
+                },
+                '&::-webkit-scrollbar-thumb:hover': {
+                  backgroundColor: '#00CCCC', // Darker Neon Blue on hover
+                  boxShadow: '0 0 5px #00CCCC, 0 0 10px #00CCCC, 0 0 15px #00CCCC',
+                },
+              }}>
+                <AnimatePresence>
+                  {Object.keys(groupedPendingItems).sort().map(category => (
+                    <React.Fragment key={category}>
+                      <ListSubheader sx={{ bgcolor: 'rgba(26, 26, 46, 0.8)', color: 'primary.main', textShadow: '0 0 4px #00FFFF', textAlign: 'center', textTransform: 'uppercase' }}>{category}</ListSubheader>
+                      {groupedPendingItems[category].map((item) => (
+                        <motion.div key={item.id} layout exit={{ opacity: 0, x: -300, height: 0 }} transition={{ duration: 0.4 }}>
+                          <ListItem divider sx={{ bgcolor: 'background.paper', borderRadius: 1, mb: 1, boxShadow: '0 0 8px rgba(0, 255, 255, 0.4)' }}>
+                            <FormControlLabel
+                              control={<Checkbox checked={item.is_bought} onChange={() => handleToggleBought(item)} name={`item-${item.id}`} color="primary"/>}
+                              label={<ListItemText primary={<Typography component="span" variant="body2" sx={{ fontWeight: 'bold' }}>{item.name}</Typography>}/>}
+                            />
+                            <ListItemSecondaryAction>
+                              <IconButton edge="end" aria-label="edit" onClick={() => handleOpenEditModal(item)}>
+                                <EditIcon />
+                              </IconButton>
+                            </ListItemSecondaryAction>
+                          </ListItem>
+                        </motion.div>
+                      ))}
+                    </React.Fragment>
                   ))}
-                </React.Fragment>
-              ))}
-            </AnimatePresence>
-          </List>
+                </AnimatePresence>
+              </List>
+            </>
+          )}
         </Paper>
       )}
 
       {/* Bought Items */}
       {!loading && boughtItems.length > 0 && (
         <Paper elevation={3} sx={{ px: 1, py: 2, mb: 3, bgcolor: 'background.paper' }}>
-          <Typography variant="body1" gutterBottom color="text.primary" onClick={() => setShowBoughtItems(!showBoughtItems)} sx={{ cursor: 'pointer' }}>
+          <Typography variant="h6" gutterBottom color="secondary.main" onClick={() => setShowBoughtItems(!showBoughtItems)} sx={{ cursor: 'pointer', textAlign: 'center', fontWeight: 'bold', textShadow: '0 0 5px #8A2BE2' }}>
             Artículos Comprados
           </Typography>
           {showBoughtItems && (
